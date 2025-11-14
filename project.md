@@ -1,218 +1,542 @@
-# Ultra Run Planner — PROJECT.md
+# Ultra Running Planner - Application Specification
 
-> **Scope**: A personal web app to plan long‑distance runs (single user; no sign‑in).  
-> **Core**: Sleek dashboard with collapsible sidebar, GPX/TCX ingestion, route mapping, planning maths (including elevation and fatigue adjustments), printable plan, Postgres backend (PostGIS + pgvector), and an “Ask AI” tile backed by local documents + web.
+## Overview
+A personal web-based application for planning and analyzing long-distance running events. The app enables route planning with GPX files, pace calculations with elevation and fatigue adjustments, waypoint management, and post-race analysis with AI-assisted planning support.
 
----
+## Technology Stack
 
-## Table of Contents
+### Backend
+- **Framework**: Python (FastAPI or Flask) or Node.js (Express)
+- **Database**: PostgreSQL with PGVector extension
+- **Container**: Docker with docker-compose
 
-1. [Functional Overview](#functional-overview)  
-2. [Non‑Goals](#non-goals)  
-3. [Tech Stack](#tech-stack)  
-4. [UI/UX Spec](#uiux-spec)  
-5. [Data Model (Postgres)](#data-model-postgres)  
-6. [Backend APIs (suggested)](#backend-apis-suggested)  
-7. [Calculations & Algorithms](#calculations--algorithms)  
-8. [Actual vs Plan](#actual-vs-plan)  
-9. [“Ask AI” (RAG)](#ask-ai-rag)  
-10. [Map & Elevation](#map--elevation)  
-11. [Printing & Export](#printing--export)  
-12. [Performance & Reliability](#performance--reliability)  
-13. [Accessibility & Internationalisation](#accessibility--internationalisation)  
-14. [Acceptance Criteria](#acceptance-criteria)  
-15. [Example Compute Pseudocode](#example-compute-pseudocode)  
-16. [Developer Notes](#developer-notes)  
-17. [Open Questions](#open-questions)  
-18. [Implementation Milestones](#implementation-milestones)  
-19. [Repository Structure](#repository-structure)  
-20. [Local Development (Docker)](#local-development-docker)  
-21. [Appendices](#appendices)
+### Frontend
+- **Framework**: React, Vue, or Svelte (recommend React for component library ecosystem)
+- **Mapping**: Leaflet.js or Mapbox GL JS
+- **Styling**: Tailwind CSS or Material-UI for sleek, modern UI
+- **Charts**: Chart.js or Recharts for data visualization
+
+### AI/ML
+- **Embeddings**: Opera text embedding small
+- **LLM APIs**: OpenAI (ChatGPT) and OpenRouter
+- **Vector Store**: PGVector
 
 ---
 
-## Functional Overview
+## Application Architecture
 
-1. **Load a route**
-   - Import a GPX file (primary) for a planned event; later allow TCX for *actuals*.
-   - Store the original file compactly (gzip). Precompute a simplified polyline for rendering/analysis.
-   - Plot the route on an interactive map.
+### Database Schema
 
-2. **Plan**
-   - Add user points snapped to the route (types: *checkpoint, food, water, rest*).
-   - Enter event metadata: **planned date**, **name**, **total distance**, **target duration**, **start time**, and **units** (mi/km).
-   - For each user point, set **name**, **comment**, and **stop time (0–600 min)**.
-   - Set global tuning: elevation gain/descent adjustments and a fatigue slow‑down factor.
-   - System computes paces per leg (following the route, not straight line), ETA at each point, stop time, and departure time.
-   - Preserve the exact calculations used for each saved **Plan Version**.
-
-3. **Dashboard**
-   - Tiled layout (grid). Each tile has a **pop‑out** to enlarge (modal/drawer).
-   - Tiles: **Map**, **Elevation Profile**, **Plan Table**, **Stats**, **Ask AI**, **Comparison** (when actuals exist).
-
-4. **Print / Export**
-   - Print‑friendly plan (A4). Optionally export to PDF and CSV.
-
-5. **Actual vs Plan**
-   - Import “actual” GPX or TCX post‑race.
-   - Overlay on the map; compute leg deltas and variance; side‑by‑side tables and charts.
-
-6. **Ask AI**
-   - Sidebar fields for **OpenAI** and **OpenRouter** API keys (stored in browser local storage).
-   - Vector store with **pgvector** using **text‑embedding‑3‑small** (1536‑dim).
-   - Ingestion supports `.txt` and `.pdf`. Strategy: embed both a **document‑level summary** and **chunk‑level** text.
-
----
-
-## Non‑Goals
-
-- No multi‑user authentication/authorisation beyond basic hygiene.
-- No complex collaboration or cloud sharing.
-- No paid tile providers by default; prefer open options.
-
----
-
-## Tech Stack
-
-- **Frontend**: TypeScript + React (Vite), minimal component lib, TailwindCSS (or equivalent).
-- **Map**: MapLibre GL JS + open tiles (e.g. OSM/MapTiler; provide key if required).
-- **Backend**: FastAPI (Python) *or* Node/Express with TypeScript — pick one and stay consistent.
-- **Database**: PostgreSQL 15+ with **PostGIS** and **pgvector**.
-- **Parsing**:
-  - GPX/TCX: robust parser (`gpxpy` in Python, or GPX→GeoJSON in JS).
-  - PDF: `pypdf` / `pdfminer.six` (Python) or `pdf-parse` (Node).
-- **Background tasks** (optional): Celery/RQ (Python) or BullMQ (Node) for heavy file processing.
-- **Testing**: Unit tests for maths and leg logic; light E2E for critical flows.
-
----
-
-## UI/UX Spec
-
-### Layout
-
-- **Header**: event selector; event name, date, total distance, target duration; actions (Print, Save Plan Version, Load Actual).
-- **Sidebar (collapsible)**:
-  - **Routes**: Load GPX, Reprocess, Delete.
-  - **Event**: Name, Date, Start Time, Units (mi/km), Target Duration.
-  - **Adjustments**:
-    - Uphill penalty % (per 100 m gain per km of leg).
-    - Downhill benefit % (per 100 m descent per km; benefit capped).
-    - Fatigue slow‑down % (linear from start to finish).
-  - **Points**: add/rename type, comment, stop minutes (0–600).
-  - **AI**: OpenAI and/or OpenRouter keys; add TXT/PDF to vector store.
-  - **Utilities**: Print Plan, Export PDF, Export CSV.
-
-- **Main Grid (tiles)** *(each tile has “expand”)*:
-  1) **Map** — route polyline, user points, snapping aid; toggle layers (planned vs actual).
-  2) **Elevation Profile** — hover links to map position; shows gain/descent per leg.
-  3) **Plan Table** — leg distance, moving pace, moving time, arrival, stop, departure; cumulative columns.
-  4) **Stats** — totals, total stops, average moving pace, GAP‑like pace, total gain/descent.
-  5) **Ask AI** — RAG chat (vector store → web → model fallback).
-  6) **Comparison** (post‑race) — leg deltas, variance plots, split chart.
-
-### Interactions
-
-- **Add point**: click on map → snap to nearest route position; choose type; set name/comment/stop.
-- **Order**: points auto‑ordered by “along‑route” measure (not by creation time).
-- **Validation**: warn if target duration ≤ total stops; prevent negative moving time.
-- **Units**: switchable; internal SI; display converts with correct pace formatting.
-
----
-
-## Data Model (Postgres)
-
-> Use **PostGIS** for geometry and **pgvector** for embeddings. Keep original files compact (gzip), and store simplified geometry for rendering/analysis.
-
+#### `events` Table
 ```sql
--- Extensions
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS vector;     -- pgvector
-CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- for gen_random_uuid()
+- id (UUID, primary key)
+- name (VARCHAR, not null)
+- planned_date (TIMESTAMP, not null)
+- distance (DECIMAL) -- in user's preferred unit
+- target_duration_minutes (INTEGER)
+- elevation_gain_adjustment_percent (DECIMAL, default 0)
+- elevation_descent_adjustment_percent (DECIMAL, default 0)
+- fatigue_slowdown_percent (DECIMAL, default 0)
+- gpx_route (JSONB) -- optimized storage of coordinates
+- gpx_metadata (JSONB) -- elevation, total distance, etc.
+- actual_gpx_data (JSONB) -- post-race actual route
+- actual_tcx_data (JSONB) -- alternative format
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+```
 
--- Core
-CREATE TABLE events (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name              TEXT NOT NULL,
-  planned_date      DATE NOT NULL,
-  start_time_local  TIME NOT NULL DEFAULT '06:00',
-  units             TEXT NOT NULL CHECK (units IN ('mi','km')),
-  target_duration_s INTEGER NOT NULL CHECK (target_duration_s > 0),
-  total_distance_m  INTEGER NOT NULL CHECK (total_distance_m > 0),
-  up_penalty_pct_per_100m   NUMERIC(5,2) NOT NULL DEFAULT 0,
-  down_benefit_pct_per_100m NUMERIC(5,2) NOT NULL DEFAULT 0,
-  fatigue_pct       NUMERIC(5,2) NOT NULL DEFAULT 0, -- e.g. 5.00
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+#### `waypoints` Table
+```sql
+- id (UUID, primary key)
+- event_id (UUID, foreign key)
+- name (VARCHAR)
+- waypoint_type (ENUM: 'checkpoint', 'food', 'water', 'rest')
+- latitude (DECIMAL)
+- longitude (DECIMAL)
+- elevation (DECIMAL, nullable)
+- stop_time_minutes (INTEGER, 0-600)
+- comments (TEXT)
+- order_index (INTEGER) -- sequence along route
+- distance_from_start (DECIMAL) -- cumulative distance
+- created_at (TIMESTAMP)
+```
 
-CREATE TABLE routes (
-  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id           UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  original_gpx_gz    BYTEA NOT NULL,                 -- gzip-compressed GPX
-  original_size_b    INTEGER NOT NULL,
-  simplified_geom    geometry(LineString, 4326) NOT NULL,
-  length_m           INTEGER NOT NULL,               -- geodesic length
-  elevation_profile  JSONB NOT NULL,                 -- [{d_m, ele_m}] decimated
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+#### `calculated_legs` Table
+```sql
+- id (UUID, primary key)
+- event_id (UUID, foreign key)
+- leg_number (INTEGER)
+- start_waypoint_id (UUID, nullable for leg 1)
+- end_waypoint_id (UUID)
+- leg_distance (DECIMAL)
+- elevation_gain (DECIMAL)
+- elevation_loss (DECIMAL)
+- base_pace (DECIMAL) -- minutes per distance unit
+- adjusted_pace (DECIMAL) -- with elevation/fatigue
+- expected_arrival_time (TIMESTAMP)
+- stop_time_minutes (INTEGER)
+- exit_time (TIMESTAMP)
+- cumulative_distance (DECIMAL)
+- cumulative_time_minutes (INTEGER)
+- created_at (TIMESTAMP)
+```
 
-CREATE TYPE point_kind AS ENUM ('checkpoint','food','water','rest');
+#### `documents` Table (for AI Vector Store)
+```sql
+- id (UUID, primary key)
+- filename (VARCHAR)
+- file_type (VARCHAR) -- 'txt', 'pdf'
+- content (TEXT)
+- summary (TEXT) -- full document summary for embedding
+- uploaded_at (TIMESTAMP)
+```
 
-CREATE TABLE route_points (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id       UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  name           TEXT NOT NULL,
-  kind           point_kind NOT NULL,
-  comment        TEXT,
-  stop_min       INTEGER NOT NULL CHECK (stop_min BETWEEN 0 AND 600),
-  geom           geometry(Point, 4326) NOT NULL,
-  -- linear referencing along the route: 0..1 fraction
-  route_measure  NUMERIC(10,8) NOT NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+#### `document_chunks` Table
+```sql
+- id (UUID, primary key)
+- document_id (UUID, foreign key)
+- chunk_index (INTEGER)
+- chunk_text (TEXT)
+- chunk_with_summary (TEXT) -- chunk + document summary
+- embedding (VECTOR(dimension)) -- PGVector embedding
+- created_at (TIMESTAMP)
+```
 
--- Preserved plan outputs (immutable per version)
-CREATE TABLE plan_versions (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id          UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  label             TEXT NOT NULL, -- e.g. "v1 baseline"
-  computed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  params_snapshot   JSONB NOT NULL, -- copies of adjustments, etc.
-  table_snapshot    JSONB NOT NULL  -- rows with legs and cumulatives
-);
+#### `user_settings` Table
+```sql
+- id (UUID, primary key)
+- distance_unit (ENUM: 'miles', 'kilometers', default 'miles')
+- pace_format (VARCHAR, default 'mm:ss')
+- elevation_unit (ENUM: 'meters', 'feet', default 'feet')
+- openai_api_key (VARCHAR, encrypted)
+- openrouter_api_key (VARCHAR, encrypted)
+- style_preferences (JSONB)
+```
 
--- Actual track import
-CREATE TABLE actuals (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id          UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  source_kind       TEXT NOT NULL CHECK (source_kind IN ('gpx','tcx')),
-  file_gz           BYTEA NOT NULL,
-  simplified_geom   geometry(LineString, 4326) NOT NULL,
-  length_m          INTEGER NOT NULL,
-  elevation_profile JSONB NOT NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+---
 
--- Vector store
-CREATE TABLE ai_docs (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  filename      TEXT NOT NULL,
-  mime          TEXT NOT NULL,
-  doc_text      TEXT,             -- for txt; OCR text for pdf if extracted
-  summary       TEXT NOT NULL,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+## GPX Optimization Strategy
 
--- Embeddings: OpenAI text-embedding-3-small has 1536 dimensions
-CREATE TABLE ai_chunks (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  doc_id        UUID NOT NULL REFERENCES ai_docs(id) ON DELETE CASCADE,
-  chunk_index   INTEGER NOT NULL,
-  chunk_text    TEXT NOT NULL,
-  chunk_embed   vector(1536) NOT NULL,
-  summary_embed vector(1536) NOT NULL
-);
+### Storage Approach
+1. **Simplify coordinates**: Use Douglas-Peucker algorithm to reduce points while maintaining route accuracy
+2. **Store as JSONB**: Compress coordinate arrays
+3. **Metadata extraction**: Pre-calculate total distance, elevation profile, bounding box
+4. **Separate storage**: Keep raw GPX file optional (compressed binary) and working data as optimized JSON
 
--- Indexes
-CREATE INDEX ON route_points (event_id, route_measure);
-CREATE INDEX ON ai_chunks USING ivfflat (chunk_embed vector_cosine_ops);
-CREATE INDEX ON ai_chunks USING ivfflat (summary_embed vector_cosine_ops);
+### Example Optimized Structure
+```json
+{
+  "coordinates": [[lat, lon, ele], ...],
+  "total_distance_meters": 50000,
+  "elevation_gain_meters": 1200,
+  "elevation_loss_meters": 1180,
+  "min_elevation": 250,
+  "max_elevation": 890,
+  "bounding_box": [[min_lat, min_lon], [max_lat, max_lon]]
+}
+```
+
+---
+
+## Core Features
+
+### 1. Dashboard Layout
+
+#### Main Dashboard
+- **Tiled layout** with the following tiles (each expandable via click):
+  - **Map View** (primary, largest tile)
+  - **Pace Calculator** (input fields for target time, adjustments)
+  - **Leg-by-Leg Table** (scrollable results table)
+  - **Event Summary** (name, date, distance, target)
+  - **Actual vs. Planned Comparison** (after race analysis)
+  - **Ask AI** (chat interface)
+  - **Statistics Dashboard** (charts: elevation profile, pace distribution)
+
+#### Sidebar (Collapsible)
+- **Toggle button** to show/hide
+- **Sections**:
+  - **File Operations**
+    - Load GPX file
+    - Load Actual GPX/TCX
+    - Export/Print Plan
+  - **Event Settings**
+    - Event name, date, distance
+    - Target duration
+  - **Pace Adjustments**
+    - Elevation gain % adjustment (slider/input)
+    - Elevation descent % adjustment
+    - Fatigue slowdown % (applied linearly from mile 1 to final mile)
+  - **Units & Display**
+    - Distance unit (Miles/KM toggle)
+    - Pace format (mm:ss per mile/km)
+    - Elevation unit (meters/feet)
+  - **AI Assistant Settings**
+    - OpenAI API key input
+    - OpenRouter API key input
+    - Upload documents (txt/pdf)
+    - Manage vector store
+  - **Style Preferences**
+    - Upload style guide JSON or image
+
+---
+
+### 2. Map Functionality
+
+#### GPX Route Visualization
+- Plot GPX route on interactive map (Leaflet/Mapbox)
+- Show elevation profile overlay/tooltip on hover
+- Color-code route by elevation or pace zones
+
+#### Waypoint Management
+- **Add waypoints** by clicking on map
+- **Waypoint types**: Checkpoint, Food, Water, Rest (different icons/colors)
+- **Edit waypoint**: Click to open modal with:
+  - Name input
+  - Type selector
+  - Stop time (0-600 minutes slider/input)
+  - Comments textarea
+- **Drag waypoints** to reposition
+- **Delete waypoints**
+- **Auto-order**: Calculate distance from start and sequence
+
+#### Route Statistics Overlay
+- Total distance
+- Total elevation gain/loss
+- Number of waypoints
+- Estimated total time
+
+---
+
+### 3. Pace Calculation Engine
+
+#### Base Calculations
+1. **Overall Average Pace** = Target Duration / Total Distance
+2. **Moving Average Pace** = (Target Duration - Total Stop Time) / Total Distance
+3. **Leg Distance**: Calculate distance between waypoints along GPX route (not straight line)
+
+#### Elevation Adjustments
+- **Gain Adjustment**: For every X feet/meters of gain, add Y% to pace
+  - Formula: `adjusted_pace = base_pace * (1 + (elevation_gain / distance) * gain_adjustment_percent)`
+- **Descent Adjustment**: Similar formula for descent (typically negative adjustment, i.e., faster)
+
+#### Fatigue Slowdown
+- **Linear degradation** from mile/km 1 to final mile/km
+- If slowdown = 5%, final mile is 5% slower than first mile
+- Each leg's pace multiplier = `1 + (leg_position / total_legs) * (slowdown_percent / 100)`
+- Distribute slowdown linearly across all legs
+
+#### Leg-by-Leg Table Columns
+| Leg | Waypoint Name | Leg Distance | Elevation +/- | Base Pace | Adjusted Pace | Leg Duration | ETA | Stop Time | Exit Time | Cumulative Distance | Cumulative Time |
+|-----|---------------|--------------|---------------|-----------|---------------|--------------|-----|-----------|-----------|--------------------|--------------------|
+
+- **Export options**: CSV, PDF, Print-friendly view
+
+---
+
+### 4. Actual vs. Planned Analysis
+
+#### Upload Actual Data
+- Load actual GPX or TCX file post-race
+- Parse actual time stamps, coordinates, heart rate (if available)
+
+#### Comparison View
+- **Overlay routes**: Planned (blue) vs Actual (red) on map
+- **Side-by-side table**:
+  - Planned ETA vs Actual Time for each waypoint
+  - Planned pace vs Actual pace per leg
+  - Deviations (early/late, faster/slower)
+- **Summary statistics**:
+  - Total time difference
+  - Average pace difference
+  - Biggest deviation leg
+  - On-time percentage
+
+#### Visualizations
+- **Pace comparison chart**: Line graph of planned vs actual pace over distance
+- **Elevation profile comparison**: Planned route elevation vs actual
+- **Time deviation graph**: Bar chart showing early/late at each waypoint
+
+---
+
+### 5. AI Assistant
+
+#### Vector Store Setup
+1. **Document upload**: txt and pdf files via sidebar
+2. **Processing pipeline**:
+   - Extract text from pdf (pypdf or pdfplumber)
+   - Generate full document summary using LLM
+   - Chunk document (500-1000 tokens per chunk)
+   - Create embeddings: `chunk_text + "\n\nDocument Context: " + document_summary`
+   - Store in `document_chunks` table with PGVector
+
+3. **Embedding Model**: Opera text embedding small (via OpenRouter or local)
+
+#### Chat Interface ("Ask AI" Tile)
+- **Chat UI**: Message input, conversation history
+- **Query pipeline**:
+  1. **Vector search**: Query vector store for relevant chunks (top 5)
+  2. **Web search**: If vector results insufficient or query seems to need current info
+  3. **LLM reasoning**: Use ChatGPT or OpenRouter with context:
+     - Retrieved document chunks
+     - Web search results
+     - Conversation history
+     - Event data (current plan, route details)
+
+#### Example Queries
+- "What's a good fueling strategy for a 50-mile race?"
+- "Based on my documents, what was my average pace in past ultras?"
+- "What's the elevation gain on the Western States course?"
+- "Recommend a training plan for this event"
+
+---
+
+### 6. Units & Settings
+
+#### User Preferences (Persistent)
+- **Distance**: Miles or Kilometers
+- **Pace**: mm:ss per mile, mm:ss per km, mph, kph
+- **Elevation**: Feet or Meters
+- **Date/Time Format**: 12hr or 24hr
+- **Theme**: Light/Dark mode (optional)
+
+#### Style Guide Support
+- Allow upload of JSON with color scheme, fonts, spacing
+- Or upload an image reference for styling direction
+- Apply across dashboard tiles
+
+---
+
+## API Endpoints (Backend)
+
+### Events
+- `POST /api/events` - Create new event
+- `GET /api/events` - List all events
+- `GET /api/events/{id}` - Get event details
+- `PUT /api/events/{id}` - Update event
+- `DELETE /api/events/{id}` - Delete event
+
+### GPX/Route
+- `POST /api/events/{id}/upload-gpx` - Upload and process GPX file
+- `POST /api/events/{id}/upload-actual` - Upload actual GPX/TCX
+- `GET /api/events/{id}/route` - Get optimized route data
+
+### Waypoints
+- `POST /api/events/{id}/waypoints` - Add waypoint
+- `PUT /api/waypoints/{id}` - Update waypoint
+- `DELETE /api/waypoints/{id}` - Delete waypoint
+- `GET /api/events/{id}/waypoints` - List all waypoints for event
+
+### Calculations
+- `POST /api/events/{id}/calculate` - Trigger pace calculation
+- `GET /api/events/{id}/legs` - Get leg-by-leg breakdown
+- `GET /api/events/{id}/comparison` - Get planned vs actual analysis
+
+### AI Assistant
+- `POST /api/documents/upload` - Upload document to vector store
+- `DELETE /api/documents/{id}` - Remove document
+- `POST /api/chat` - Send chat message, get AI response
+- `GET /api/chat/history` - Get conversation history
+
+### Settings
+- `GET /api/settings` - Get user settings
+- `PUT /api/settings` - Update settings
+
+---
+
+## Docker Setup
+
+### docker-compose.yml Structure
+```yaml
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ultraplanner
+      POSTGRES_USER: runner
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://runner:${DB_PASSWORD}@db:5432/ultraplanner
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+```
+
+### Environment Variables
+- `DB_PASSWORD`
+- `OPENAI_API_KEY` (optional, can be set in UI)
+- `OPENROUTER_API_KEY` (optional, can be set in UI)
+
+---
+
+## Implementation Priorities
+
+### Phase 1 - Core Functionality
+1. Database setup with PostgreSQL
+2. GPX upload and optimization
+3. Map visualization with Leaflet
+4. Basic waypoint creation/editing
+5. Simple pace calculation (no adjustments)
+6. Leg-by-leg table display
+
+### Phase 2 - Advanced Calculations
+1. Elevation gain/descent adjustments
+2. Fatigue slowdown implementation
+3. Accurate distance calculation along route between waypoints
+4. Export/print functionality
+
+### Phase 3 - Post-Race Analysis
+1. Actual GPX/TCX upload
+2. Route comparison visualization
+3. Pace deviation analysis
+4. Statistics and charts
+
+### Phase 4 - AI Assistant
+1. PGVector setup
+2. Document upload and embedding
+3. Chat interface
+4. RAG pipeline with web search integration
+
+### Phase 5 - Polish
+1. Units and settings persistence
+2. Style guide implementation
+3. UI/UX refinements
+4. Dashboard tile expand/collapse animations
+5. Responsive design
+
+---
+
+## Key Technical Considerations
+
+### GPX Distance Calculation
+- Use Haversine formula for distance between coordinates
+- Account for elevation in 3D distance calculation
+- Implement route snapping to find waypoint positions on GPX track
+
+### Pace Adjustment Algorithm
+```python
+def calculate_adjusted_pace(
+    base_pace, 
+    elevation_gain, 
+    elevation_loss, 
+    leg_distance,
+    gain_adjustment_pct,
+    loss_adjustment_pct,
+    leg_position,
+    total_legs,
+    fatigue_slowdown_pct
+):
+    # Elevation adjustment
+    gain_factor = (elevation_gain / leg_distance) * (gain_adjustment_pct / 100)
+    loss_factor = (elevation_loss / leg_distance) * (loss_adjustment_pct / 100)
+    elevation_adjusted_pace = base_pace * (1 + gain_factor - loss_factor)
+    
+    # Fatigue adjustment (linear degradation)
+    fatigue_factor = (leg_position / total_legs) * (fatigue_slowdown_pct / 100)
+    final_pace = elevation_adjusted_pace * (1 + fatigue_factor)
+    
+    return final_pace
+```
+
+### Vector Store Query
+```python
+async def query_vector_store(query_text, limit=5):
+    # Generate embedding for query
+    query_embedding = await generate_embedding(query_text)
+    
+    # PGVector similarity search
+    results = await db.execute(
+        """
+        SELECT c.chunk_text, c.chunk_with_summary, d.filename,
+               1 - (c.embedding <=> $1) as similarity
+        FROM document_chunks c
+        JOIN documents d ON c.document_id = d.id
+        ORDER BY c.embedding <=> $1
+        LIMIT $2
+        """,
+        query_embedding, limit
+    )
+    
+    return results
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- Distance calculations
+- Pace adjustment formulas
+- GPX parsing and optimization
+- Elevation profile generation
+
+### Integration Tests
+- API endpoints
+- Database operations
+- GPX upload pipeline
+- Vector store embedding and retrieval
+
+### E2E Tests
+- Complete workflow: create event → upload GPX → add waypoints → calculate → view results
+- Actual vs planned comparison flow
+- AI assistant query flow
+
+---
+
+## Missing Areas / Questions
+
+### To Consider:
+1. **Weather integration**: Should the app pull weather data for the event date/location?
+2. **Training plan integration**: Track training leading up to event?
+3. **Nutrition calculator**: Auto-suggest fueling based on duration/intensity?
+4. **Crew/pacer tracking**: Add crew access points or pacer exchanges?
+5. **Multi-lap courses**: Support for repeated loop courses?
+6. **Sharing/Export**: Generate shareable links or PDFs for crew?
+7. **Historical events**: Archive of past races with notes and lessons learned?
+8. **Backup/Restore**: Export entire database for backup?
+9. **Mobile responsiveness**: Primary mobile UI or desktop-first?
+10. **Offline mode**: Service worker for offline access during race?
+
+### Performance Optimization:
+- **Map rendering**: Lazy load map tiles, throttle waypoint updates
+- **Large GPX files**: Handle 10,000+ point routes efficiently
+- **Vector search**: Index strategy for fast retrieval
+- **Caching**: Redis layer for calculated results?
+
+### Security Notes:
+- Even for personal use, encrypt API keys in database
+- Use environment variables for sensitive config
+- HTTPS recommended if exposed beyond localhost
+- Consider backup strategy for race day (offline capability)
+
+---
+
+## Next Steps
+
+1. Review this specification for completeness
+2. Refine any ambiguous requirements
+3. Choose specific tech stack (recommend: React + FastAPI + PostgreSQL)
+4. Set up development environment
+5. Initialize Git repository
+6. Begin Phase 1 implementation
