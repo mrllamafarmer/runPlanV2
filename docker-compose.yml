@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ultraplanner
+      POSTGRES_USER: runner
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ultrarunner2024}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U runner -d ultraplanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://runner:${DB_PASSWORD:-ultrarunner2024}@db:5432/ultraplanner
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-PM8PVlDujpKA9YHqhghUNvrOuD6tguJUxcFalPHBLj0=}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data/uploads:/app/uploads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev -- --host
+
+# Volumes are now using bind mounts to ./data directory for persistence
+
