@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Trash2, Edit, Copy } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, Edit, Copy, X } from 'lucide-react';
 import { eventsApi } from '../services/api';
 import type { Event } from '../types';
 import CreateEventModal from '../components/CreateEventModal';
@@ -9,6 +9,8 @@ export default function EventsList() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     loadEvents();
@@ -46,6 +48,34 @@ export default function EventsList() {
       console.error('Error duplicating event:', error);
       alert('Error duplicating event');
     }
+  };
+
+  const handleStartEdit = (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation
+    setEditingId(event.id);
+    setEditingName(event.name);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editingName.trim()) {
+      alert('Event name cannot be empty');
+      return;
+    }
+
+    try {
+      await eventsApi.update(id, { name: editingName });
+      loadEvents();
+      setEditingId(null);
+      setEditingName('');
+    } catch (error) {
+      console.error('Error updating event name:', error);
+      alert('Error updating event name');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
   };
 
   const formatDate = (dateString: string) => {
@@ -112,25 +142,64 @@ export default function EventsList() {
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900 truncate">
-                    {event.name}
-                  </h3>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={(e) => handleDuplicate(event.id, e)}
-                      className="text-gray-600 hover:text-primary-600"
-                      title="Duplicate event"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(event.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete event"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {editingId === event.id ? (
+                    <div className="flex-1 flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(event.id);
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                        className="flex-1 text-lg font-medium text-gray-900 border border-primary-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveEdit(event.id)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Save"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-lg font-medium text-gray-900 truncate flex-1">
+                        {event.name}
+                      </h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => handleStartEdit(event, e)}
+                          className="text-gray-600 hover:text-primary-600"
+                          title="Edit name"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDuplicate(event.id, e)}
+                          className="text-gray-600 hover:text-primary-600"
+                          title="Duplicate event"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(event.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete event"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 <div className="space-y-2 text-sm text-gray-600">
