@@ -174,25 +174,7 @@ export default function SettingsPage() {
                 placeholder="sk-..."
               />
               <p className="mt-1 text-xs text-gray-500">
-                Required for AI assistant functionality
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                OpenRouter API Key
-              </label>
-              <input
-                type="password"
-                value={settings.openrouter_api_key || ''}
-                onChange={(e) =>
-                  setSettings({ ...settings, openrouter_api_key: e.target.value })
-                }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                placeholder="sk-or-..."
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Alternative LLM provider for AI assistant
+                Required for AI assistant functionality (GPT-5 Nano, embeddings, web search)
               </p>
             </div>
           </div>

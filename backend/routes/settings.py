@@ -46,8 +46,6 @@ def get_settings(db: Session = Depends(get_db)):
     response = SettingsResponse.model_validate(settings)
     if settings.openai_api_key:
         response.openai_api_key = "***" + decrypt_value(settings.openai_api_key)[-4:] if len(decrypt_value(settings.openai_api_key)) > 4 else "***"
-    if settings.openrouter_api_key:
-        response.openrouter_api_key = "***" + decrypt_value(settings.openrouter_api_key)[-4:] if len(decrypt_value(settings.openrouter_api_key)) > 4 else "***"
     
     return response
 
@@ -66,9 +64,6 @@ def update_settings(settings_update: SettingsUpdate, db: Session = Depends(get_d
     if 'openai_api_key' in update_data and update_data['openai_api_key']:
         update_data['openai_api_key'] = encrypt_value(update_data['openai_api_key'])
     
-    if 'openrouter_api_key' in update_data and update_data['openrouter_api_key']:
-        update_data['openrouter_api_key'] = encrypt_value(update_data['openrouter_api_key'])
-    
     for key, value in update_data.items():
         setattr(settings, key, value)
     
@@ -80,9 +75,6 @@ def update_settings(settings_update: SettingsUpdate, db: Session = Depends(get_d
     if settings.openai_api_key:
         decrypted = decrypt_value(settings.openai_api_key)
         response.openai_api_key = "***" + decrypted[-4:] if len(decrypted) > 4 else "***"
-    if settings.openrouter_api_key:
-        decrypted = decrypt_value(settings.openrouter_api_key)
-        response.openrouter_api_key = "***" + decrypted[-4:] if len(decrypted) > 4 else "***"
     
     return response
 

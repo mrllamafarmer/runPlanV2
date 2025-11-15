@@ -70,7 +70,6 @@ export interface Settings {
   pace_format: string;
   elevation_unit: 'meters' | 'feet';
   openai_api_key?: string;
-  openrouter_api_key?: string;
   style_preferences?: Record<string, any>;
   created_at: string;
   updated_at?: string;

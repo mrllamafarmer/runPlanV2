@@ -102,7 +102,6 @@ class SettingsBase(BaseModel):
     pace_format: str = "mm:ss"
     elevation_unit: ElevationUnit = ElevationUnit.feet
     openai_api_key: Optional[str] = None
-    openrouter_api_key: Optional[str] = None
     style_preferences: Optional[dict] = None
 
 class SettingsUpdate(SettingsBase):

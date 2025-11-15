@@ -120,7 +120,6 @@ class UserSettings(Base):
     pace_format = Column(String, default="mm:ss")
     elevation_unit = Column(Enum(ElevationUnit), default=ElevationUnit.feet)
     openai_api_key = Column(String)  # encrypted
-    openrouter_api_key = Column(String)  # encrypted
     style_preferences = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
