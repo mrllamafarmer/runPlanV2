@@ -24,13 +24,13 @@ app = FastAPI(
 # CORS configuration
 ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
 
-# Custom middleware to ensure CORS headers on ALL responses including errors
+# Custom middleware to handle CORS completely
 @app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    """Add CORS headers to all responses, including error responses"""
-    origin = request.headers.get("origin")
+async def cors_middleware(request: Request, call_next):
+    """Custom CORS middleware that handles all cases including errors"""
+    origin = request.headers.get("origin", "")
 
-    # Handle preflight requests
+    # Handle preflight OPTIONS requests
     if request.method == "OPTIONS":
         response = JSONResponse(content={}, status_code=200)
         if origin in ALLOWED_ORIGINS:
@@ -38,33 +38,31 @@ async def add_cors_headers(request: Request, call_next):
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Max-Age"] = "3600"
         return response
 
-    # Process the request
+    # Process the request and catch all exceptions
     try:
         response = await call_next(request)
     except Exception as e:
-        # Handle any unhandled exceptions
+        # Log the error for debugging
+        print(f"Unhandled exception: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        # Create error response
         response = JSONResponse(
             status_code=500,
             content={"detail": f"Internal server error: {str(e)}"}
         )
 
-    # Add CORS headers to the response
+    # Always add CORS headers to response if origin is allowed
     if origin in ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
 
     return response
-
-# CORS middleware (as fallback)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 def get_cors_headers(request: Request) -> dict:
     """Get CORS headers for the request origin"""
