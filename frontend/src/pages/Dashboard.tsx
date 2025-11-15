@@ -10,7 +10,8 @@ import PaceAdjustments from '../components/PaceAdjustments';
 import ChatAssistant from '../components/ChatAssistant';
 import ComparisonView from '../components/ComparisonView';
 import ElevationProfile from '../components/ElevationProfile';
-import { exportToCSV, printPlan } from '../utils/exportUtils';
+import PrintView from '../components/PrintView';
+import { exportToCSV } from '../utils/exportUtils';
 
 export default function Dashboard() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const [calculating, setCalculating] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
+  const [showPrintView, setShowPrintView] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -96,6 +98,10 @@ export default function Dashboard() {
     if (event) {
       exportToCSV(legs, waypoints, event);
     }
+  };
+
+  const handlePrint = () => {
+    setShowPrintView(true);
   };
 
   const handleWaypointCreate = async (waypoint: Partial<Waypoint>) => {
@@ -238,7 +244,7 @@ export default function Dashboard() {
                   Export CSV
                 </button>
                 <button
-                  onClick={printPlan}
+                  onClick={handlePrint}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <Printer className="h-4 w-4 mr-2" />
@@ -328,6 +334,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Print View Modal */}
+      {showPrintView && event && (
+        <PrintView
+          event={event}
+          routeData={routeData}
+          waypoints={waypoints}
+          legs={legs}
+          onClose={() => setShowPrintView(false)}
+        />
+      )}
     </div>
   );
 }
