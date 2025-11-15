@@ -42,6 +42,7 @@ You can now customize the AI model and reasoning effort used by the chat assista
    - Quick responses
    - Good for simple questions
    - Lowest cost
+   - ⚠️ **Note**: Auto-upgrades to "Low" if web search is needed
 
 2. **Low** - Fast responses (Default)
    - Balanced speed and quality

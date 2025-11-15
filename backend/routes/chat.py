@@ -220,17 +220,24 @@ Provide detailed, practical advice based on the user's questions and the context
         # Create streaming generator
         def generate():
             try:
-                stream = client.responses.create(
-                    model=ai_model,
-                    reasoning={"effort": reasoning_effort},
-                    tools=[{"type": "web_search"}],  # Enable web search
-                    tool_choice="auto",  # Let the model decide when to search
-                    input=[
-                        {"role": "user", "content": combined_message}
-                    ],
-                    max_output_tokens=8000,
-                    stream=True
-                )
+                # Web search requires at least "low" reasoning effort
+                # Auto-upgrade from minimal to low if web search is enabled
+                effective_reasoning = reasoning_effort
+                if reasoning_effort == "minimal":
+                    effective_reasoning = "low"
+                    print(f"Auto-upgraded reasoning from 'minimal' to 'low' for web search compatibility")
+                
+                request_params = {
+                    "model": ai_model,
+                    "reasoning": {"effort": effective_reasoning},
+                    "tools": [{"type": "web_search"}],  # Always enable web search
+                    "tool_choice": "auto",  # Let the model decide when to search
+                    "input": [{"role": "user", "content": combined_message}],
+                    "max_output_tokens": 8000,
+                    "stream": True
+                }
+                
+                stream = client.responses.create(**request_params)
                 
                 full_response = ""
                 web_searches = []
