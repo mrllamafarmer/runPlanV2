@@ -86,34 +86,37 @@ def extract_text_from_markdown(file_content: bytes) -> str:
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
     """
     Split text into chunks with overlap
-    
+
     Args:
         text: The text to chunk
         chunk_size: Target chunk size in tokens (default: 500)
         overlap: Number of overlapping tokens between chunks (default: 50)
-    
+
     Returns:
         List of text chunks
     """
+    # Sanitize input text first
+    text = sanitize_text(text)
+
     # Use tiktoken to count tokens (cl100k_base is used by text-embedding-3-small)
     encoding = tiktoken.get_encoding("cl100k_base")
     tokens = encoding.encode(text)
-    
+
     chunks = []
     start = 0
-    
+
     while start < len(tokens):
         # Get chunk
         end = start + chunk_size
         chunk_tokens = tokens[start:end]
-        
-        # Decode back to text
-        chunk_text = encoding.decode(chunk_tokens)
+
+        # Decode back to text and sanitize (encoding/decoding might reintroduce issues)
+        chunk_text = sanitize_text(encoding.decode(chunk_tokens))
         chunks.append(chunk_text)
-        
+
         # Move start position with overlap
         start = end - overlap
-    
+
     return chunks
 
 
