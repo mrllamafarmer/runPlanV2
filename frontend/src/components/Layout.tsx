@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Settings, Mountain } from 'lucide-react';
+import { Home, Calendar, Settings, Mountain, FileText } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -32,6 +32,17 @@ export default function Layout() {
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Events
+                </Link>
+                <Link
+                  to="/documents"
+                  className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                    isActive('/documents')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Documents
                 </Link>
                 <Link
                   to="/settings"

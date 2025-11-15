@@ -84,23 +84,54 @@ def get_event_context(event_id: str, db: Session) -> Optional[str]:
         print(f"Error getting event context: {e}")
         return None
 
-def search_documents(query: str, db: Session, limit: int = 3) -> List[dict]:
-    """Search document chunks using vector similarity (simplified version)"""
+async def search_documents(query: str, api_key: str, db: Session, limit: int = 3) -> List[dict]:
+    """Search document chunks using vector similarity with PGVector"""
     try:
-        # For now, do a simple text search since we need embeddings to be set up
-        # In a full implementation, this would use vector similarity with embeddings
-        chunks = db.query(DocumentChunk).join(DocumentChunk.document).limit(limit).all()
+        # Generate embedding for the query
+        from utils.text_processor import generate_embeddings
+        
+        query_embeddings = await generate_embeddings([query], api_key)
+        if not query_embeddings:
+            return []
+        
+        query_embedding = query_embeddings[0]
+        
+        # Convert to string format for SQL
+        embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
+        
+        # Use PGVector cosine distance operator (<=>)
+        # Lower distance = more similar
+        query_sql = text("""
+            SELECT 
+                dc.chunk_text,
+                d.filename,
+                (dc.embedding <=> :embedding) as distance
+            FROM document_chunks dc
+            JOIN documents d ON dc.document_id = d.id
+            WHERE dc.embedding IS NOT NULL
+            ORDER BY dc.embedding <=> :embedding
+            LIMIT :limit
+        """)
+        
+        result = db.execute(
+            query_sql,
+            {"embedding": embedding_str, "limit": limit}
+        )
         
         results = []
-        for chunk in chunks:
+        for row in result:
             results.append({
-                "text": chunk.chunk_text[:500] + "..." if len(chunk.chunk_text) > 500 else chunk.chunk_text,
-                "document": chunk.document.filename if chunk.document else "Unknown"
+                "text": row.chunk_text[:500] + "..." if len(row.chunk_text) > 500 else row.chunk_text,
+                "document": row.filename,
+                "distance": float(row.distance)
             })
         
         return results
+        
     except Exception as e:
         print(f"Error searching documents: {e}")
+        import traceback
+        print(traceback.format_exc())
         return []
 
 @router.post("", response_model=ChatResponse)
@@ -165,8 +196,8 @@ Provide detailed, practical advice based on the user's questions and the context
         if message.event_id:
             event_context = get_event_context(str(message.event_id), db)
         
-        # Search relevant documents
-        relevant_docs = search_documents(message.message, db)
+        # Search relevant documents using vector similarity
+        relevant_docs = await search_documents(message.message, api_key, db)
         
         # Build the user message with context
         user_message = message.message
