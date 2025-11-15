@@ -105,7 +105,7 @@ export default function CreateEventModal({ onClose, onCreated }: CreateEventModa
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white"
               placeholder="Western States 100"
             />
           </div>
@@ -119,7 +119,7 @@ export default function CreateEventModal({ onClose, onCreated }: CreateEventModa
               required
               value={formData.planned_date}
               onChange={(e) => setFormData({ ...formData, planned_date: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white"
             />
             <p className="mt-1 text-xs text-gray-500">
               Distance will be calculated automatically when you upload a GPX file
@@ -137,7 +137,7 @@ export default function CreateEventModal({ onClose, onCreated }: CreateEventModa
                 setFormData({ ...formData, target_duration: e.target.value });
                 setDurationError('');
               }}
-              className={`mt-1 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm ${
+              className={`mt-1 block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white ${
                 durationError ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="24:00:00 (24 hours)"
