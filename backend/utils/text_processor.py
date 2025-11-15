@@ -13,17 +13,27 @@ import io
 import re
 
 
+def sanitize_text(text: str) -> str:
+    """Remove NUL bytes and other problematic characters from text"""
+    if not text:
+        return text
+    # Remove NUL bytes which PostgreSQL doesn't allow
+    text = text.replace('\x00', '')
+    # Remove other control characters except newlines, tabs, and carriage returns
+    text = ''.join(char for char in text if char >= ' ' or char in '\n\t\r')
+    return text
+
 def extract_text_from_pdf(file_content: bytes) -> str:
     """Extract text from PDF file"""
     try:
         pdf_file = io.BytesIO(file_content)
         reader = PdfReader(pdf_file)
-        
+
         text = ""
         for page in reader.pages:
             text += page.extract_text() + "\n\n"
-        
-        return text.strip()
+
+        return sanitize_text(text.strip())
     except Exception as e:
         raise Exception(f"Error extracting text from PDF: {str(e)}")
 
@@ -33,19 +43,19 @@ def extract_text_from_docx(file_content: bytes) -> str:
     try:
         docx_file = io.BytesIO(file_content)
         doc = DocxDocument(docx_file)
-        
+
         text = ""
         for paragraph in doc.paragraphs:
             text += paragraph.text + "\n"
-        
+
         # Also extract text from tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     text += cell.text + " "
                 text += "\n"
-        
-        return text.strip()
+
+        return sanitize_text(text.strip())
     except Exception as e:
         raise Exception(f"Error extracting text from DOCX: {str(e)}")
 
@@ -58,17 +68,17 @@ def extract_text_from_markdown(file_content: bytes) -> str:
     try:
         # Decode markdown content
         md_text = file_content.decode('utf-8')
-        
+
         # Convert markdown to HTML
         html = markdown.markdown(md_text)
-        
+
         # Strip HTML tags to get plain text
         text = re.sub('<[^<]+?>', '', html)
-        
+
         # Clean up extra whitespace
         text = re.sub(r'\n\s*\n', '\n\n', text)
-        
-        return text.strip()
+
+        return sanitize_text(text.strip())
     except Exception as e:
         raise Exception(f"Error extracting text from Markdown: {str(e)}")
 
@@ -193,11 +203,11 @@ async def process_document(
     """
     # Extract text
     file_ext = filename.split('.')[-1].lower()
-    
+
     if file_ext == 'pdf':
         text = extract_text_from_pdf(file_content)
     elif file_ext == 'txt':
-        text = file_content.decode('utf-8')
+        text = sanitize_text(file_content.decode('utf-8'))
     elif file_ext == 'docx':
         text = extract_text_from_docx(file_content)
     elif file_ext in ['md', 'markdown']:
