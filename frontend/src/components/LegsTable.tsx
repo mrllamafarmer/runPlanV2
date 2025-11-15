@@ -439,7 +439,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                                     value={editName}
                                     onChange={(e) => setEditName(e.target.value)}
                                     disabled={isSystemWaypoint}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white disabled:bg-gray-100 disabled:text-gray-500"
                                     placeholder="e.g., Aid Station 3"
                                   />
                                   {isSystemWaypoint && (
@@ -455,7 +455,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                                   <select
                                     value={editType}
                                     onChange={(e) => setEditType(e.target.value as 'checkpoint' | 'food' | 'water' | 'rest')}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white"
                                   >
                                     <option value="checkpoint">Checkpoint</option>
                                     <option value="food">Food</option>
@@ -478,7 +478,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                                     value={editDistance}
                                     onChange={(e) => setEditDistance(e.target.value)}
                                     disabled={isSystemWaypoint}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white disabled:bg-gray-100 disabled:text-gray-500"
                                   />
                                   {routeData && !isSystemWaypoint && (
                                     <p className="mt-1 text-xs text-gray-500">
@@ -500,7 +500,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                                     min="0"
                                     value={editStopTime}
                                     onChange={(e) => setEditStopTime(parseInt(e.target.value) || 0)}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white"
                                   />
                                 </div>
                               </div>
@@ -512,7 +512,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                                   value={editComments}
                                   onChange={(e) => setEditComments(e.target.value)}
                                   rows={3}
-                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm text-gray-900 bg-white"
                                   placeholder="Add notes about this waypoint..."
                                 />
                               </div>
@@ -613,7 +613,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                       max={routeData ? (routeData.metadata?.total_distance_meters || 0) / 1609.34 : undefined}
                       value={newWaypointData.distance}
                       onChange={(e) => setNewWaypointData({ ...newWaypointData, distance: e.target.value })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm text-gray-900 bg-white"
                       placeholder="e.g., 25.5"
                     />
                     {routeData && (
@@ -631,7 +631,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                       type="text"
                       value={newWaypointData.name}
                       onChange={(e) => setNewWaypointData({ ...newWaypointData, name: e.target.value })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm text-gray-900 bg-white"
                       placeholder="e.g., Aid Station 3"
                     />
                     <p className="mt-1 text-xs text-gray-500">
@@ -646,7 +646,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                     <select
                       value={newWaypointData.type}
                       onChange={(e) => setNewWaypointData({ ...newWaypointData, type: e.target.value as any })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm text-gray-900 bg-white"
                     >
                       <option value="checkpoint">Checkpoint / Aid Station</option>
                       <option value="food">Food Stop</option>
@@ -664,7 +664,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                       min="0"
                       value={newWaypointData.stopTime}
                       onChange={(e) => setNewWaypointData({ ...newWaypointData, stopTime: e.target.value })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm text-gray-900 bg-white"
                       placeholder="0"
                     />
                   </div>
@@ -677,7 +677,7 @@ export default function LegsTable({ legs, waypoints, routeData, onWaypointUpdate
                       value={newWaypointData.comments}
                       onChange={(e) => setNewWaypointData({ ...newWaypointData, comments: e.target.value })}
                       rows={3}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm text-gray-900 bg-white"
                       placeholder="Optional notes about this waypoint..."
                     />
                   </div>
