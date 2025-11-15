@@ -1,12 +1,16 @@
-import { Calendar, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, MapPin, TrendingUp, TrendingDown, Edit2, Save, X } from 'lucide-react';
 import type { Event, RouteData } from '../types';
 
 interface EventSummaryProps {
   event: Event;
   routeData: RouteData | null;
+  onUpdate?: (updates: Partial<Event>) => void;
 }
 
-export default function EventSummary({ event, routeData }: EventSummaryProps) {
+export default function EventSummary({ event, routeData, onUpdate }: EventSummaryProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDate, setEditedDate] = useState(event.planned_date);
   const formatDuration = (minutes?: number) => {
     if (!minutes) return 'Not set';
     const hours = Math.floor(minutes / 60);
@@ -17,25 +21,86 @@ export default function EventSummary({ event, routeData }: EventSummaryProps) {
   const metersToMiles = (meters: number) => (meters / 1609.34).toFixed(2);
   const metersToFeet = (meters: number) => (meters * 3.28084).toFixed(0);
 
+  const handleSave = () => {
+    if (onUpdate) {
+      onUpdate({ planned_date: editedDate });
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedDate(event.planned_date);
+    setIsEditing(false);
+  };
+
+  // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
+  const formatForInput = (dateString: string) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Event Summary</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Event Summary</h2>
+        {onUpdate && !isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded-md"
+            title="Edit date/time"
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
+        )}
+        {isEditing && (
+          <div className="flex space-x-2">
+            <button
+              onClick={handleSave}
+              className="p-1.5 text-green-600 hover:bg-green-50 rounded-md"
+              title="Save"
+            >
+              <Save className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleCancel}
+              className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+              title="Cancel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
       
       <div className="space-y-3">
         <div className="flex items-start">
           <Calendar className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-          <div>
-            <div className="text-sm font-medium text-gray-900">Date</div>
-            <div className="text-sm text-gray-600">
-              {new Date(event.planned_date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </div>
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-900 mb-1">Date & Time</div>
+            {isEditing ? (
+              <input
+                type="datetime-local"
+                value={formatForInput(editedDate)}
+                onChange={(e) => setEditedDate(new Date(e.target.value).toISOString())}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2 text-gray-900 bg-white"
+              />
+            ) : (
+              <div className="text-sm text-gray-600">
+                {new Date(event.planned_date).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+            )}
           </div>
         </div>
 

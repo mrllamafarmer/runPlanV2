@@ -33,7 +33,7 @@ export default function PaceAdjustments({ event, onUpdate }: PaceAdjustmentsProp
             step="0.1"
             value={elevGain}
             onChange={(e) => setElevGain(parseFloat(e.target.value) || 0)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
           />
           <p className="mt-1 text-xs text-gray-500">
             Slow down by this % per meter of elevation gain
@@ -49,7 +49,7 @@ export default function PaceAdjustments({ event, onUpdate }: PaceAdjustmentsProp
             step="0.1"
             value={elevLoss}
             onChange={(e) => setElevLoss(parseFloat(e.target.value) || 0)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
           />
           <p className="mt-1 text-xs text-gray-500">
             Speed up by this % per meter of elevation loss (usually negative)
@@ -65,7 +65,7 @@ export default function PaceAdjustments({ event, onUpdate }: PaceAdjustmentsProp
             step="0.1"
             value={fatigue}
             onChange={(e) => setFatigue(parseFloat(e.target.value) || 0)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
           />
           <p className="mt-1 text-xs text-gray-500">
             Linear slowdown from start to finish

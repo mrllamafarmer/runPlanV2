@@ -294,7 +294,7 @@ export default function Dashboard() {
 
           {/* Event Summary & Adjustments */}
           <div className="space-y-6">
-            <EventSummary event={event} routeData={routeData} />
+            <EventSummary event={event} routeData={routeData} onUpdate={handleEventUpdate} />
             <PaceAdjustments event={event} onUpdate={handleEventUpdate} />
           </div>
 
