@@ -1,20 +1,127 @@
-import { useState } from 'react';
-import { Send, Bot } from 'lucide-react';
-import { chatApi } from '../services/api';
+import { useState, useEffect } from 'react';
+import { Send, Bot, History, Plus, Trash2, X } from 'lucide-react';
 
 interface ChatAssistantProps {
   eventId?: string;
 }
 
 interface Message {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
+  created_at?: string;
+}
+
+interface ChatSession {
+  id: string;
+  event_id?: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ChatAssistant({ eventId }: ChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  // Load sessions for the event and restore active session
+  useEffect(() => {
+    loadSessions();
+    
+    // Restore the last active session from localStorage
+    if (eventId) {
+      const savedSessionId = localStorage.getItem(`chat_session_${eventId}`);
+      if (savedSessionId) {
+        loadSession(savedSessionId);
+      }
+    }
+  }, [eventId]);
+
+  const loadSessions = async () => {
+    if (!eventId) return;
+    
+    setLoadingSessions(true);
+    try {
+      const url = new URL('http://localhost:8000/api/chat/sessions');
+      url.searchParams.append('event_id', eventId);
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setSessions(data);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const loadSession = async (sessionId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}`);
+      if (response.ok) {
+        const session = await response.json();
+        setMessages(session.messages || []);
+        setCurrentSessionId(sessionId);
+        setShowHistory(false);
+        
+        // Save to localStorage so it persists across refreshes
+        if (eventId) {
+          localStorage.setItem(`chat_session_${eventId}`, sessionId);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading session:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(null);
+    setShowHistory(false);
+    
+    // Clear saved session from localStorage
+    if (eventId) {
+      localStorage.removeItem(`chat_session_${eventId}`);
+    }
+  };
+
+  const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Delete this chat session?')) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setSessions(sessions.filter(s => s.id !== sessionId));
+        if (currentSessionId === sessionId) {
+          startNewChat();
+        }
+        
+        // Clear from localStorage if it's the saved session
+        if (eventId) {
+          const savedSessionId = localStorage.getItem(`chat_session_${eventId}`);
+          if (savedSessionId === sessionId) {
+            localStorage.removeItem(`chat_session_${eventId}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -29,11 +136,11 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      // Use EventSource for streaming
       const url = new URL('http://localhost:8000/api/chat');
       const payload = {
         message: userMessage,
         event_id: eventId || null,
+        session_id: currentSessionId,
       };
 
       const response = await fetch(url, {
@@ -56,6 +163,7 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
       }
 
       let accumulatedContent = '';
+      let sessionId = currentSessionId;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -69,7 +177,16 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
             try {
               const data = JSON.parse(line.slice(6));
               
-              if (data.chunk) {
+              if (data.session_id && !sessionId) {
+                // Store session ID from first message
+                sessionId = data.session_id;
+                setCurrentSessionId(sessionId);
+                
+                // Save to localStorage so it persists across refreshes
+                if (eventId) {
+                  localStorage.setItem(`chat_session_${eventId}`, sessionId);
+                }
+              } else if (data.chunk) {
                 accumulatedContent += data.chunk;
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -82,7 +199,10 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
               } else if (data.search) {
                 // Show web search indicator
                 if (data.search.status === 'in_progress' || !data.search.status) {
-                  accumulatedContent = '🔍 Searching the web...\n\n' + accumulatedContent;
+                  const searchPrefix = '🔍 Searching the web...\n\n';
+                  if (!accumulatedContent.startsWith(searchPrefix)) {
+                    accumulatedContent = searchPrefix + accumulatedContent;
+                  }
                 } else if (data.search.status === 'completed') {
                   accumulatedContent = accumulatedContent.replace('🔍 Searching the web...\n\n', '');
                 }
@@ -96,6 +216,8 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
                 });
               } else if (data.done) {
                 setLoading(false);
+                // Reload sessions to show the new/updated one
+                loadSessions();
               } else if (data.error) {
                 throw new Error(data.error);
               }
@@ -121,14 +243,81 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center">
-        <Bot className="h-5 w-5 text-primary-600 mr-2" />
-        <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
-        <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-          Beta
-        </span>
+    <div className="bg-white rounded-lg shadow relative">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center">
+          <Bot className="h-5 w-5 text-primary-600 mr-2" />
+          <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
+          <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+            Beta
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={startNewChat}
+            className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-md"
+            title="New chat"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-md"
+            title="Chat history"
+          >
+            <History className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+
+      {/* History Sidebar */}
+      {showHistory && (
+        <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Chat History</h3>
+            <button
+              onClick={() => setShowHistory(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="py-2">
+            {loadingSessions ? (
+              <div className="px-4 py-3 text-sm text-gray-500">Loading...</div>
+            ) : sessions.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500">No chat history yet</div>
+            ) : (
+              sessions.map((session) => (
+                <div
+                  key={session.id}
+                  onClick={() => loadSession(session.id)}
+                  className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 flex items-start justify-between group ${
+                    currentSessionId === session.id ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {session.title || 'Untitled Chat'}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(session.updated_at).toLocaleDateString()} at{' '}
+                      {new Date(session.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => deleteSession(session.id, e)}
+                    className="ml-2 p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="p-6">
         {/* Messages */}
@@ -137,11 +326,16 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
             <div className="text-center text-gray-500 py-8">
               <Bot className="h-12 w-12 mx-auto mb-3 text-gray-400" />
               <p className="text-sm">Ask me about training, nutrition, pacing strategies, or anything related to ultra running!</p>
+              {sessions.length > 0 && (
+                <p className="text-xs mt-2 text-gray-400">
+                  Click <History className="h-3 w-3 inline" /> to view past conversations
+                </p>
+              )}
             </div>
           ) : (
             messages.map((message, index) => (
               <div
-                key={index}
+                key={message.id || index}
                 className={`flex ${
                   message.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
@@ -158,7 +352,7 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
               </div>
             ))
           )}
-          {loading && (
+          {loading && messages.length > 0 && messages[messages.length - 1].content === '' && (
             <div className="flex justify-start">
               <div className="bg-gray-100 rounded-lg px-4 py-2">
                 <p className="text-sm text-gray-600">Thinking...</p>
@@ -190,4 +384,3 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
     </div>
   );
 }
-

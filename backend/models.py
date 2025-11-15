@@ -125,3 +125,28 @@ class UserSettings(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"))
+    title = Column(String)  # auto-generated from first message
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan", order_by="ChatMessage.created_at")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String, nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+    sources = Column(JSON)  # for assistant messages with citations
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    session = relationship("ChatSession", back_populates="messages")
+

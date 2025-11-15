@@ -11,8 +11,8 @@ A personal web-based application for planning and analyzing long-distance runnin
 - 🗺️ **Route Planning**: Upload and visualize GPX files with interactive maps
 - 📊 **Pace Calculations**: Advanced pace calculations with elevation and fatigue adjustments
 - 📍 **Waypoint Management**: Add, edit, and organize checkpoints, food stops, water stations
+- 🤖 **AI Assistant**: GPT-5 Nano powered coach with web search, RAG, and persistent chat history
 - 📈 **Post-Race Analysis**: Compare planned vs actual performance
-- 🤖 **AI Assistant**: RAG-powered assistant with document embeddings for training advice
 - 📱 **Modern UI**: Beautiful, responsive interface with Tailwind CSS
 
 ## Technology Stack

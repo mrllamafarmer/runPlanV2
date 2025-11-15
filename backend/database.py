@@ -20,6 +20,6 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from models import Event, Waypoint, CalculatedLeg, Document, DocumentChunk, UserSettings
+    from models import Event, Waypoint, CalculatedLeg, Document, DocumentChunk, UserSettings, ChatSession, ChatMessage
     Base.metadata.create_all(bind=engine)
 

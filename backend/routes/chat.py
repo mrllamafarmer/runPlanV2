@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, desc
 from database import get_db
-from schemas import ChatMessage, ChatResponse
-from models import Event, UserSettings, DocumentChunk, Waypoint, CalculatedLeg
+from schemas import ChatMessage, ChatResponse, ChatSessionResponse, ChatMessageResponse
+from models import Event, UserSettings, DocumentChunk, Waypoint, CalculatedLeg, ChatSession, ChatMessage as ChatMessageModel
 from cryptography.fernet import Fernet
 import os
 import openai
 import json
 from typing import List, Optional
+from datetime import datetime
+import uuid
 
 router = APIRouter()
 
@@ -104,7 +106,7 @@ def search_documents(query: str, db: Session, limit: int = 3) -> List[dict]:
 @router.post("", response_model=ChatResponse)
 async def chat(message: ChatMessage, db: Session = Depends(get_db)):
     """
-    Send a message to the AI assistant with RAG capabilities
+    Send a message to the AI assistant with RAG capabilities and save to database
     """
     # Get settings for API keys
     settings = db.query(UserSettings).first()
@@ -116,6 +118,30 @@ async def chat(message: ChatMessage, db: Session = Depends(get_db)):
         )
     
     try:
+        # Create or get session
+        if message.session_id:
+            session = db.query(ChatSession).filter(ChatSession.id == message.session_id).first()
+            if not session:
+                raise HTTPException(status_code=404, detail="Chat session not found")
+        else:
+            # Create new session
+            session = ChatSession(
+                event_id=message.event_id,
+                title=message.message[:50] + ("..." if len(message.message) > 50 else "")  # Use first message as title
+            )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+        
+        # Save user message
+        user_msg = ChatMessageModel(
+            session_id=session.id,
+            role="user",
+            content=message.message
+        )
+        db.add(user_msg)
+        db.commit()
+        
         # Decrypt API key
         api_key = decrypt_value(settings.openai_api_key)
         openai.api_key = api_key
@@ -176,6 +202,9 @@ Provide detailed, practical advice based on the user's questions and the context
                 full_response = ""
                 web_searches = []
                 
+                # Send session ID first
+                yield f"data: {json.dumps({'session_id': str(session.id)})}\n\n"
+                
                 for event in stream:
                     # Log the event for debugging
                     print(f"Stream event type: {type(event)}, event: {event}")
@@ -211,12 +240,23 @@ Provide detailed, practical advice based on the user's questions and the context
                         # Send the raw event for debugging
                         print(f"Unknown event structure: {dir(event)}")
                 
-                # Send completion message with sources
-                sources = []
+                # Save assistant message to database
+                sources_list = []
                 if relevant_docs:
-                    sources = [{"document": doc["document"], "preview": doc["text"][:200]} for doc in relevant_docs]
+                    sources_list = [{"document": doc["document"], "preview": doc["text"][:200]} for doc in relevant_docs]
                 
-                yield f"data: {json.dumps({'done': True, 'sources': sources})}\n\n"
+                assistant_msg = ChatMessageModel(
+                    session_id=session.id,
+                    role="assistant",
+                    content=full_response,
+                    sources=sources_list if sources_list else None
+                )
+                db.add(assistant_msg)
+                session.updated_at = datetime.utcnow()
+                db.commit()
+                
+                # Send completion message with sources
+                yield f"data: {json.dumps({'done': True, 'sources': sources_list})}\n\n"
                 
             except Exception as e:
                 error_msg = f"Error during streaming: {type(e).__name__}: {str(e)}"
@@ -249,11 +289,66 @@ Provide detailed, practical advice based on the user's questions and the context
             sources=None
         )
 
-@router.get("/history")
-async def get_chat_history(db: Session = Depends(get_db)):
-    """Get chat history (placeholder)"""
-    return {
-        "messages": [],
-        "message": "Chat history will be implemented in Phase 4"
-    }
+@router.get("/sessions", response_model=List[ChatSessionResponse])
+async def get_chat_sessions(event_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Get chat sessions, optionally filtered by event_id
+    """
+    query = db.query(ChatSession).order_by(desc(ChatSession.updated_at))
+    
+    if event_id:
+        query = query.filter(ChatSession.event_id == event_id)
+    
+    sessions = query.all()
+    
+    # Return sessions without messages for list view
+    return [ChatSessionResponse(
+        id=session.id,
+        event_id=session.event_id,
+        title=session.title,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        messages=None
+    ) for session in sessions]
+
+@router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
+async def get_chat_session(session_id: str, db: Session = Depends(get_db)):
+    """
+    Get a specific chat session with all messages
+    """
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    return ChatSessionResponse(
+        id=session.id,
+        event_id=session.event_id,
+        title=session.title,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        messages=[ChatMessageResponse(
+            id=msg.id,
+            session_id=msg.session_id,
+            role=msg.role,
+            content=msg.content,
+            sources=msg.sources,
+            created_at=msg.created_at
+        ) for msg in session.messages]
+    )
+
+@router.delete("/sessions/{session_id}")
+async def delete_chat_session(session_id: str, db: Session = Depends(get_db)):
+    """
+    Delete a chat session and all its messages
+    """
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    db.delete(session)
+    db.commit()
+    
+    return {"success": True, "message": "Chat session deleted"}
 

@@ -119,10 +119,32 @@ class SettingsResponse(SettingsBase):
 class ChatMessage(BaseModel):
     message: str
     event_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None  # If provided, continue existing session
 
 class ChatResponse(BaseModel):
     response: str
     sources: Optional[List[dict]] = None
+    session_id: Optional[UUID] = None  # Return session ID for tracking
+
+class ChatMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    session_id: UUID
+    role: str
+    content: str
+    sources: Optional[dict] = None
+    created_at: datetime
+
+class ChatSessionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    event_id: Optional[UUID] = None
+    title: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    messages: Optional[List[ChatMessageResponse]] = None
 
 # GPX Upload Response
 class GPXUploadResponse(BaseModel):

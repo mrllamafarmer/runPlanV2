@@ -181,13 +181,16 @@ The map legend (bottom-left corner) shows all waypoint types:
 
 ### AI Assistant
 
-The AI Assistant is **fully functional** and powered by OpenAI's GPT-4o-mini. It provides expert ultra running advice with full context-awareness of your event.
+The AI Assistant is **fully functional** and powered by OpenAI's GPT-5 Nano. It provides expert ultra running advice with full context-awareness of your event.
 
 **Features:**
-- Context-aware responses based on your event details
-- Expert knowledge in training, nutrition, pacing, and gear
-- Analyzes your route, elevation, and waypoints
-- Provides specific recommendations for YOUR race
+- 🧠 Context-aware responses based on your event details
+- 🔍 **Web search** capability for up-to-date race info, weather, results
+- 💾 **Persistent chat history** - all conversations are saved
+- 📜 **Chat history sidebar** - review past conversations
+- 🤖 Expert knowledge in training, nutrition, pacing, and gear
+- 📊 Analyzes your route, elevation, and waypoints
+- 🎯 Provides specific recommendations for YOUR race
 
 **How to Use:**
 1. Add your OpenAI API key in Settings
@@ -195,13 +198,24 @@ The AI Assistant is **fully functional** and powered by OpenAI's GPT-4o-mini. It
 3. Find the AI Assistant panel (bottom-right)
 4. Ask questions about training, strategy, nutrition, gear, etc.
 
+**Chat Features:**
+- 📝 **New Chat**: Click the + icon to start a fresh conversation
+- 📜 **History**: Click the history icon to view all past chats for this event
+- 🔄 **Continue**: Click any past chat to continue where you left off
+- 🗑️ **Delete**: Remove old chats you no longer need (hover to see trash icon)
+- 💾 **Auto-save**: All chats are automatically saved to the database
+
 **Example Questions:**
 - "Given my target time and elevation, what pacing strategy should I use?"
 - "What nutrition strategy should I follow for this race?"
 - "Are my waypoint stops realistic?"
 - "What gear should I pack for this event?"
+- "What do you know about Centurion Running's North Downs Way 100?" *(uses web search)*
+- "What's the current weather forecast for my race location?" *(uses web search)*
 
-**Cost:** ~$0.0003 per question (less than a penny) using GPT-4o-mini
+**Cost:** ~$0.00003 per question (very low) using GPT-5 Nano
+
+**Note:** Your chats persist across browser refreshes, waypoint edits, and Docker restarts!
 
 📖 **See [AI_ASSISTANT_GUIDE.md](AI_ASSISTANT_GUIDE.md) for detailed instructions and examples**
 
