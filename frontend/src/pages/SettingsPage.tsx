@@ -39,7 +39,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
-      await settingsApi.update(settings);
+      // Don't send masked API key back to server
+      const settingsToUpdate = { ...settings };
+      if (settingsToUpdate.openai_api_key?.startsWith('***')) {
+        delete settingsToUpdate.openai_api_key;
+      }
+      
+      await settingsApi.update(settingsToUpdate);
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);

@@ -60,9 +60,14 @@ def update_settings(settings_update: SettingsUpdate, db: Session = Depends(get_d
     
     update_data = settings_update.model_dump(exclude_unset=True)
     
-    # Encrypt API keys
+    # Encrypt API keys (but skip if it's a masked value from frontend)
     if 'openai_api_key' in update_data and update_data['openai_api_key']:
-        update_data['openai_api_key'] = encrypt_value(update_data['openai_api_key'])
+        # Don't re-encrypt if it's already encrypted (masked values start with ***)
+        if not update_data['openai_api_key'].startswith('***'):
+            update_data['openai_api_key'] = encrypt_value(update_data['openai_api_key'])
+        else:
+            # Remove masked value to avoid corrupting the stored key
+            del update_data['openai_api_key']
     
     for key, value in update_data.items():
         setattr(settings, key, value)
