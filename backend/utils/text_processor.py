@@ -31,8 +31,14 @@ def extract_text_from_pdf(file_content: bytes) -> str:
 
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n\n"
+            # Extract text and immediately sanitize to handle UTF-16 NUL bytes
+            page_text = page.extract_text()
+            if page_text:
+                # Remove NUL bytes that might be interleaved in UTF-16 encoded text
+                page_text = page_text.replace('\x00', '')
+                text += page_text + "\n\n"
 
+        # Final sanitization to catch any remaining issues
         return sanitize_text(text.strip())
     except Exception as e:
         raise Exception(f"Error extracting text from PDF: {str(e)}")
@@ -46,13 +52,17 @@ def extract_text_from_docx(file_content: bytes) -> str:
 
         text = ""
         for paragraph in doc.paragraphs:
-            text += paragraph.text + "\n"
+            if paragraph.text:
+                # Remove NUL bytes immediately
+                text += paragraph.text.replace('\x00', '') + "\n"
 
         # Also extract text from tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    text += cell.text + " "
+                    if cell.text:
+                        # Remove NUL bytes immediately
+                        text += cell.text.replace('\x00', '') + " "
                 text += "\n"
 
         return sanitize_text(text.strip())
