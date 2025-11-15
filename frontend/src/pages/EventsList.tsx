@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar, MapPin, Trash2, Edit } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, Edit, Copy } from 'lucide-react';
 import { eventsApi } from '../services/api';
 import type { Event } from '../types';
 import CreateEventModal from '../components/CreateEventModal';
@@ -33,6 +33,18 @@ export default function EventsList() {
       } catch (error) {
         console.error('Error deleting event:', error);
       }
+    }
+  };
+
+  const handleDuplicate = async (id: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent navigation
+    try {
+      await eventsApi.duplicate(id);
+      loadEvents();
+      alert('Event duplicated successfully!');
+    } catch (error) {
+      console.error('Error duplicating event:', error);
+      alert('Error duplicating event');
     }
   };
 
@@ -105,8 +117,16 @@ export default function EventsList() {
                   </h3>
                   <div className="flex space-x-2">
                     <button
+                      onClick={(e) => handleDuplicate(event.id, e)}
+                      className="text-gray-600 hover:text-primary-600"
+                      title="Duplicate event"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => handleDelete(event.id)}
                       className="text-red-600 hover:text-red-900"
+                      title="Delete event"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

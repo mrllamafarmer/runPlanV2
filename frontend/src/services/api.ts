@@ -17,6 +17,7 @@ export const eventsApi = {
   create: (data: Partial<Event>) => api.post<Event>('/api/events', data),
   update: (id: string, data: Partial<Event>) => api.put<Event>(`/api/events/${id}`, data),
   delete: (id: string) => api.delete(`/api/events/${id}`),
+  duplicate: (id: string) => api.post<Event>(`/api/events/${id}/duplicate`),
   uploadGPX: (id: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

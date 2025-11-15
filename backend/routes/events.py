@@ -6,6 +6,8 @@ from database import get_db
 from models import Event, Waypoint
 from schemas import EventCreate, EventUpdate, EventResponse, GPXUploadResponse
 from utils.gpx_processor import parse_gpx_file, meters_to_miles, meters_to_kilometers
+import uuid as uuid_module
+from datetime import datetime
 
 router = APIRouter()
 
@@ -57,6 +59,57 @@ def delete_event(event_id: UUID, db: Session = Depends(get_db)):
     db.delete(db_event)
     db.commit()
     return None
+
+@router.post("/{event_id}/duplicate", response_model=EventResponse, status_code=201)
+def duplicate_event(event_id: UUID, db: Session = Depends(get_db)):
+    """Duplicate an event with all its waypoints"""
+    # Get original event
+    original_event = db.query(Event).filter(Event.id == event_id).first()
+    if not original_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Create new event with copied data
+    new_event = Event(
+        id=uuid_module.uuid4(),
+        name=f"Copy of {original_event.name}",
+        planned_date=original_event.planned_date,
+        distance=original_event.distance,
+        target_duration_minutes=original_event.target_duration_minutes,
+        elevation_gain_adjustment_percent=original_event.elevation_gain_adjustment_percent,
+        elevation_descent_adjustment_percent=original_event.elevation_descent_adjustment_percent,
+        fatigue_slowdown_percent=original_event.fatigue_slowdown_percent,
+        gpx_route=original_event.gpx_route,
+        gpx_metadata=original_event.gpx_metadata,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_event)
+    db.flush()  # Get the new event ID
+    
+    # Copy all waypoints
+    original_waypoints = db.query(Waypoint).filter(Waypoint.event_id == event_id).order_by(Waypoint.order_index).all()
+    for orig_waypoint in original_waypoints:
+        new_waypoint = Waypoint(
+            id=uuid_module.uuid4(),
+            event_id=new_event.id,
+            name=orig_waypoint.name,
+            waypoint_type=orig_waypoint.waypoint_type,
+            latitude=orig_waypoint.latitude,
+            longitude=orig_waypoint.longitude,
+            elevation=orig_waypoint.elevation,
+            stop_time_minutes=orig_waypoint.stop_time_minutes,
+            comments=orig_waypoint.comments,
+            order_index=orig_waypoint.order_index,
+            distance_from_start=orig_waypoint.distance_from_start,
+            created_at=datetime.utcnow()
+        )
+        db.add(new_waypoint)
+    
+    # Note: We don't copy calculated_legs - those will be recalculated
+    
+    db.commit()
+    db.refresh(new_event)
+    
+    return new_event
 
 @router.post("/{event_id}/upload-gpx", response_model=GPXUploadResponse)
 async def upload_gpx(event_id: UUID, file: UploadFile = File(...), db: Session = Depends(get_db)):
