@@ -154,6 +154,11 @@ export default function Dashboard() {
     try {
       await eventsApi.update(eventId, updates);
       setEvent({ ...event, ...updates });
+      
+      // If target duration was changed, trigger recalculation indicator
+      if (updates.target_duration_minutes !== undefined) {
+        setNeedsRecalculation(true);
+      }
     } catch (error) {
       console.error('Error updating event:', error);
     }

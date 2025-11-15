@@ -11,6 +11,12 @@ interface EventSummaryProps {
 export default function EventSummary({ event, routeData, onUpdate }: EventSummaryProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedDate, setEditedDate] = useState(event.planned_date);
+  const [editedDuration, setEditedDuration] = useState(
+    event.target_duration_minutes 
+      ? minutesToHHMMSS(event.target_duration_minutes) 
+      : '00:00:00'
+  );
+
   const formatDuration = (minutes?: number) => {
     if (!minutes) return 'Not set';
     const hours = Math.floor(minutes / 60);
@@ -18,18 +24,44 @@ export default function EventSummary({ event, routeData, onUpdate }: EventSummar
     return `${hours}h ${mins}m`;
   };
 
+  // Convert minutes to HH:MM:SS format
+  function minutesToHHMMSS(totalMinutes: number): string {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.floor(totalMinutes % 60);
+    const seconds = Math.floor((totalMinutes % 1) * 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  // Convert HH:MM:SS format to minutes
+  function hhmmssToMinutes(timeString: string): number {
+    const parts = timeString.split(':');
+    const hours = parseInt(parts[0] || '0', 10);
+    const minutes = parseInt(parts[1] || '0', 10);
+    const seconds = parseInt(parts[2] || '0', 10);
+    return hours * 60 + minutes + seconds / 60;
+  }
+
   const metersToMiles = (meters: number) => (meters / 1609.34).toFixed(2);
   const metersToFeet = (meters: number) => (meters * 3.28084).toFixed(0);
 
   const handleSave = () => {
     if (onUpdate) {
-      onUpdate({ planned_date: editedDate });
+      const updates: Partial<Event> = {
+        planned_date: editedDate,
+        target_duration_minutes: hhmmssToMinutes(editedDuration)
+      };
+      onUpdate(updates);
     }
     setIsEditing(false);
   };
 
   const handleCancel = () => {
     setEditedDate(event.planned_date);
+    setEditedDuration(
+      event.target_duration_minutes 
+        ? minutesToHHMMSS(event.target_duration_minutes) 
+        : '00:00:00'
+    );
     setIsEditing(false);
   };
 
@@ -144,9 +176,19 @@ export default function EventSummary({ event, routeData, onUpdate }: EventSummar
 
         <div className="pt-3 border-t border-gray-200">
           <div className="text-sm font-medium text-gray-900 mb-1">Target Duration</div>
-          <div className="text-sm text-gray-600">
-            {formatDuration(event.target_duration_minutes)}
-          </div>
+          {isEditing ? (
+            <input
+              type="text"
+              value={editedDuration}
+              onChange={(e) => setEditedDuration(e.target.value)}
+              placeholder="HH:MM:SS"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm px-3 py-2 text-gray-900 bg-white font-mono"
+            />
+          ) : (
+            <div className="text-sm text-gray-600">
+              {formatDuration(event.target_duration_minutes)}
+            </div>
+          )}
         </div>
 
         {event.target_duration_minutes && event.distance && (
