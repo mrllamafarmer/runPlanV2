@@ -57,6 +57,7 @@ def simplify_coordinates(coordinates: List[List[float]], epsilon: float = 0.0001
 def parse_gpx_file(gpx_content: str) -> Dict:
     """
     Parse GPX file content and return optimized structure
+    Includes timestamp detection for timing data
     """
     gpx = gpxpy.parse(gpx_content)
     
@@ -67,15 +68,30 @@ def parse_gpx_file(gpx_content: str) -> Dict:
     min_elevation = float('inf')
     max_elevation = float('-inf')
     
+    # Timestamp tracking
+    has_timestamps = False
+    first_timestamp = None
+    last_timestamp = None
+    points_with_timestamps = 0
+    total_points = 0
+    
     previous_point = None
     
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
+                total_points += 1
                 lat, lon = point.latitude, point.longitude
                 ele = point.elevation if point.elevation else 0
                 
                 coordinates.append([lat, lon, ele])
+                
+                # Track timestamps if present
+                if point.time is not None:
+                    points_with_timestamps += 1
+                    if first_timestamp is None:
+                        first_timestamp = point.time
+                    last_timestamp = point.time
                 
                 # Update elevation stats
                 if ele < min_elevation:
@@ -101,6 +117,15 @@ def parse_gpx_file(gpx_content: str) -> Dict:
                 
                 previous_point = point
     
+    # Determine if we have sufficient timestamps (at least 80% of points)
+    has_timestamps = (points_with_timestamps / total_points) >= 0.8 if total_points > 0 else False
+    
+    # Calculate duration if timestamps available
+    timestamp_duration_minutes = None
+    if has_timestamps and first_timestamp and last_timestamp:
+        duration_seconds = (last_timestamp - first_timestamp).total_seconds()
+        timestamp_duration_minutes = duration_seconds / 60
+    
     # Simplify coordinates
     simplified_coords = simplify_coordinates(coordinates, epsilon=0.0001)
     
@@ -120,7 +145,11 @@ def parse_gpx_file(gpx_content: str) -> Dict:
             [max(lats), max(lons)]
         ],
         "original_points": len(coordinates),
-        "simplified_points": len(simplified_coords)
+        "simplified_points": len(simplified_coords),
+        "has_timestamps": has_timestamps,
+        "timestamp_duration_minutes": timestamp_duration_minutes,
+        "first_timestamp": first_timestamp.isoformat() if first_timestamp else None,
+        "last_timestamp": last_timestamp.isoformat() if last_timestamp else None
     }
 
 def find_closest_point_on_route(route_coords: List[List[float]], 

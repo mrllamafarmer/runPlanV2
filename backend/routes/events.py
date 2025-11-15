@@ -136,7 +136,11 @@ async def upload_gpx(event_id: UUID, file: UploadFile = File(...), db: Session =
             "max_elevation": gpx_data["max_elevation"],
             "bounding_box": gpx_data["bounding_box"],
             "original_points": gpx_data["original_points"],
-            "simplified_points": gpx_data["simplified_points"]
+            "simplified_points": gpx_data["simplified_points"],
+            "has_timestamps": gpx_data.get("has_timestamps", False),
+            "timestamp_duration_minutes": gpx_data.get("timestamp_duration_minutes"),
+            "first_timestamp": gpx_data.get("first_timestamp"),
+            "last_timestamp": gpx_data.get("last_timestamp")
         }
         
         # Update event distance if not set
@@ -183,9 +187,14 @@ async def upload_gpx(event_id: UUID, file: UploadFile = File(...), db: Session =
         
         db.commit()
         
+        message = f"GPX file processed successfully. {gpx_data['simplified_points']} points from {gpx_data['original_points']} original. Start and Finish waypoints created."
+        if gpx_data.get("has_timestamps"):
+            duration_hours = gpx_data.get("timestamp_duration_minutes", 0) / 60
+            message += f" Timestamps detected (duration: {duration_hours:.1f} hours)."
+        
         return GPXUploadResponse(
             success=True,
-            message=f"GPX file processed successfully. {gpx_data['simplified_points']} points from {gpx_data['original_points']} original. Start and Finish waypoints created.",
+            message=message,
             metadata=event.gpx_metadata
         )
     except Exception as e:
@@ -206,21 +215,30 @@ async def upload_actual_gpx(event_id: UUID, file: UploadFile = File(...), db: Se
         # Parse GPX (TCX support can be added later)
         gpx_data = parse_gpx_file(file_content)
         
-        # Store actual data
+        # Store actual data with timestamp information
         event.actual_gpx_data = {
             "coordinates": gpx_data["coordinates"],
             "metadata": {
                 "total_distance_meters": gpx_data["total_distance_meters"],
                 "elevation_gain_meters": gpx_data["elevation_gain_meters"],
-                "elevation_loss_meters": gpx_data["elevation_loss_meters"]
+                "elevation_loss_meters": gpx_data["elevation_loss_meters"],
+                "has_timestamps": gpx_data.get("has_timestamps", False),
+                "timestamp_duration_minutes": gpx_data.get("timestamp_duration_minutes"),
+                "first_timestamp": gpx_data.get("first_timestamp"),
+                "last_timestamp": gpx_data.get("last_timestamp")
             }
         }
         
         db.commit()
         
+        message = "Actual route uploaded successfully"
+        if gpx_data.get("has_timestamps"):
+            duration_hours = gpx_data.get("timestamp_duration_minutes", 0) / 60
+            message += f" with timestamps (duration: {duration_hours:.1f} hours)"
+        
         return GPXUploadResponse(
             success=True,
-            message="Actual route uploaded successfully",
+            message=message,
             metadata=event.actual_gpx_data.get("metadata")
         )
     except Exception as e:

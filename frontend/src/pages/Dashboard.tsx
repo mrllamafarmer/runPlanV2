@@ -11,6 +11,7 @@ import ChatAssistant from '../components/ChatAssistant';
 import ComparisonView from '../components/ComparisonView';
 import ElevationProfile from '../components/ElevationProfile';
 import PrintView from '../components/PrintView';
+import TimestampPromptModal from '../components/TimestampPromptModal';
 import { exportToCSV } from '../utils/exportUtils';
 
 export default function Dashboard() {
@@ -25,6 +26,12 @@ export default function Dashboard() {
   const [showComparison, setShowComparison] = useState(false);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
   const [showPrintView, setShowPrintView] = useState(false);
+  const [showTimestampPrompt, setShowTimestampPrompt] = useState(false);
+  const [timestampData, setTimestampData] = useState<{
+    durationMinutes: number;
+    firstTimestamp: string;
+    lastTimestamp: string;
+  } | null>(null);
 
   useEffect(() => {
     if (eventId) {
@@ -71,9 +78,21 @@ export default function Dashboard() {
     if (!eventId) return;
     
     try {
-      await eventsApi.uploadGPX(eventId, file);
+      const response = await eventsApi.uploadGPX(eventId, file);
       await loadEventData();
-      alert('GPX file uploaded successfully!');
+      
+      // Check if the GPX file has timestamps
+      if (response.data.metadata?.has_timestamps && 
+          response.data.metadata?.timestamp_duration_minutes) {
+        setTimestampData({
+          durationMinutes: response.data.metadata.timestamp_duration_minutes,
+          firstTimestamp: response.data.metadata.first_timestamp,
+          lastTimestamp: response.data.metadata.last_timestamp,
+        });
+        setShowTimestampPrompt(true);
+      } else {
+        alert(response.data.message || 'GPX file uploaded successfully!');
+      }
     } catch (error) {
       console.error('Error uploading GPX:', error);
       alert('Error uploading GPX file');
@@ -84,10 +103,12 @@ export default function Dashboard() {
     if (!eventId) return;
     
     try {
-      await eventsApi.uploadActual(eventId, file);
+      const response = await eventsApi.uploadActual(eventId, file);
       await loadEventData();
       setShowComparison(true);
-      alert('Actual race data uploaded successfully!');
+      
+      // Display message about timestamps if present
+      alert(response.data.message || 'Actual race data uploaded successfully!');
     } catch (error) {
       console.error('Error uploading actual data:', error);
       alert('Error uploading actual race data');
@@ -102,6 +123,33 @@ export default function Dashboard() {
 
   const handlePrint = () => {
     setShowPrintView(true);
+  };
+
+  const handleAcceptTimestamps = async () => {
+    if (!eventId || !timestampData) return;
+    
+    try {
+      // Update event with the duration from timestamps
+      await eventsApi.update(eventId, {
+        target_duration_minutes: Math.round(timestampData.durationMinutes),
+      });
+      
+      setShowTimestampPrompt(false);
+      setTimestampData(null);
+      await loadEventData();
+      setNeedsRecalculation(true);
+      
+      alert('Target duration set from GPX timestamps! You can now adjust paces and waypoints.');
+    } catch (error) {
+      console.error('Error updating event duration:', error);
+      alert('Error setting target duration');
+    }
+  };
+
+  const handleDeclineTimestamps = () => {
+    setShowTimestampPrompt(false);
+    setTimestampData(null);
+    alert('GPX file uploaded successfully! You can set your own target duration in the event settings.');
   };
 
   const handleWaypointCreate = async (waypoint: Partial<Waypoint>) => {
@@ -343,6 +391,18 @@ export default function Dashboard() {
           waypoints={waypoints}
           legs={legs}
           onClose={() => setShowPrintView(false)}
+        />
+      )}
+
+      {/* Timestamp Prompt Modal */}
+      {showTimestampPrompt && timestampData && (
+        <TimestampPromptModal
+          durationMinutes={timestampData.durationMinutes}
+          firstTimestamp={timestampData.firstTimestamp}
+          lastTimestamp={timestampData.lastTimestamp}
+          onAccept={handleAcceptTimestamps}
+          onDecline={handleDeclineTimestamps}
+          onClose={handleDeclineTimestamps}
         />
       )}
     </div>
