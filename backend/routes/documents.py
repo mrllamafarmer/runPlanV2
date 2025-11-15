@@ -30,7 +30,7 @@ def decrypt_value(value: str) -> str:
 async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a document to the vector store with full RAG processing
-    - Extracts text from PDF or TXT
+    - Extracts text from PDF, TXT, DOCX, or Markdown files
     - Chunks text into 500-token segments with 50-token overlap
     - Generates embeddings using OpenAI text-embedding-3-small
     - Stores chunks with embeddings for semantic search
@@ -53,8 +53,11 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     
     # Verify file type
     file_ext = file.filename.split('.')[-1].lower()
-    if file_ext not in ['txt', 'pdf']:
-        raise HTTPException(status_code=400, detail="Only .txt and .pdf files are supported")
+    if file_ext not in ['txt', 'pdf', 'docx', 'md', 'markdown']:
+        raise HTTPException(
+            status_code=400, 
+            detail="Only .txt, .pdf, .docx, .md, and .markdown files are supported"
+        )
     
     # Read file content
     try:

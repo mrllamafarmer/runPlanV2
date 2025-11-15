@@ -45,8 +45,9 @@ export default function DocumentsPage() {
 
     // Validate file type
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'pdf' && ext !== 'txt') {
-      setError('Only PDF and TXT files are supported');
+    const supportedTypes = ['pdf', 'txt', 'docx', 'md', 'markdown'];
+    if (!ext || !supportedTypes.includes(ext)) {
+      setError('Only PDF, TXT, DOCX, and Markdown files are supported');
       return;
     }
 
@@ -109,7 +110,7 @@ export default function DocumentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <h1 className="text-3xl font-bold text-gray-900">Training Documents</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Upload PDFs and text files to enhance your AI assistant with custom knowledge
+            Upload documents (PDF, TXT, DOCX, Markdown) to enhance your AI assistant with custom knowledge
           </p>
         </div>
       </div>
@@ -126,10 +127,10 @@ export default function DocumentsPage() {
               <div className="text-sm text-blue-800">
                 <p className="font-medium mb-1">How it works:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Upload PDFs or TXT files containing training guides, race reports, or nutrition advice</li>
+                  <li>Upload documents containing training guides, race reports, or nutrition advice</li>
                   <li>Documents are automatically chunked and embedded using AI</li>
                   <li>The AI assistant will reference these documents when answering your questions</li>
-                  <li>Supported formats: PDF, TXT</li>
+                  <li>Supported formats: PDF, TXT, DOCX, Markdown (.md)</li>
                 </ul>
               </div>
             </div>
@@ -153,7 +154,7 @@ export default function DocumentsPage() {
             <label className="cursor-pointer">
               <input
                 type="file"
-                accept=".pdf,.txt"
+                accept=".pdf,.txt,.docx,.md,.markdown"
                 onChange={handleFileUpload}
                 disabled={uploading}
                 className="hidden"

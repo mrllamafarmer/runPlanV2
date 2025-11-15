@@ -7,7 +7,10 @@ import tiktoken
 from typing import List, Dict
 import openai
 from pypdf import PdfReader
+from docx import Document as DocxDocument
+import markdown
 import io
+import re
 
 
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -23,6 +26,51 @@ def extract_text_from_pdf(file_content: bytes) -> str:
         return text.strip()
     except Exception as e:
         raise Exception(f"Error extracting text from PDF: {str(e)}")
+
+
+def extract_text_from_docx(file_content: bytes) -> str:
+    """Extract text from DOCX (Microsoft Word) file"""
+    try:
+        docx_file = io.BytesIO(file_content)
+        doc = DocxDocument(docx_file)
+        
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        
+        # Also extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    text += cell.text + " "
+                text += "\n"
+        
+        return text.strip()
+    except Exception as e:
+        raise Exception(f"Error extracting text from DOCX: {str(e)}")
+
+
+def extract_text_from_markdown(file_content: bytes) -> str:
+    """
+    Extract text from Markdown file
+    Converts markdown to HTML then strips tags to get clean text
+    """
+    try:
+        # Decode markdown content
+        md_text = file_content.decode('utf-8')
+        
+        # Convert markdown to HTML
+        html = markdown.markdown(md_text)
+        
+        # Strip HTML tags to get plain text
+        text = re.sub('<[^<]+?>', '', html)
+        
+        # Clean up extra whitespace
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        
+        return text.strip()
+    except Exception as e:
+        raise Exception(f"Error extracting text from Markdown: {str(e)}")
 
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
@@ -150,6 +198,10 @@ async def process_document(
         text = extract_text_from_pdf(file_content)
     elif file_ext == 'txt':
         text = file_content.decode('utf-8')
+    elif file_ext == 'docx':
+        text = extract_text_from_docx(file_content)
+    elif file_ext in ['md', 'markdown']:
+        text = extract_text_from_markdown(file_content)
     else:
         raise Exception(f"Unsupported file type: {file_ext}")
     
