@@ -68,7 +68,16 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
       const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}`);
       if (response.ok) {
         const session = await response.json();
-        setMessages(session.messages || []);
+        console.log('Loaded session:', session);
+        console.log('Messages in session:', session.messages);
+        
+        if (session.messages && Array.isArray(session.messages)) {
+          setMessages(session.messages);
+        } else {
+          console.warn('No messages found in session or invalid format');
+          setMessages([]);
+        }
+        
         setCurrentSessionId(sessionId);
         setShowHistory(false);
         
@@ -76,9 +85,14 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
         if (eventId) {
           localStorage.setItem(`chat_session_${eventId}`, sessionId);
         }
+      } else {
+        console.error('Failed to load session:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
       }
     } catch (error) {
       console.error('Error loading session:', error);
+      alert('Failed to load chat session. Please check the console for details.');
     } finally {
       setLoading(false);
     }
@@ -369,7 +383,7 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask a question..."
-            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
             disabled={loading}
           />
           <button
