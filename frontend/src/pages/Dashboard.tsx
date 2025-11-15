@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Upload, Download, Play, FileText, Printer, ArrowLeft } from 'lucide-react';
 import { eventsApi, waypointsApi, calculationsApi } from '../services/api';
@@ -32,6 +32,8 @@ export default function Dashboard() {
     firstTimestamp: string;
     lastTimestamp: string;
   } | null>(null);
+  const [aiAnalysisMessage, setAiAnalysisMessage] = useState<string | null>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (eventId) {
@@ -150,6 +152,19 @@ export default function Dashboard() {
     setShowTimestampPrompt(false);
     setTimestampData(null);
     alert('GPX file uploaded successfully! You can set your own target duration in the event settings.');
+  };
+
+  const handleRequestAIAnalysis = (analysisPrompt: string) => {
+    setAiAnalysisMessage(analysisPrompt);
+    // Scroll to chat after a short delay
+    setTimeout(() => {
+      chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleAIMessageSent = () => {
+    // Clear the auto-send message after it's been sent
+    setAiAnalysisMessage(null);
   };
 
   const handleWaypointCreate = async (waypoint: Partial<Waypoint>) => {
@@ -372,13 +387,20 @@ export default function Dashboard() {
           {/* Comparison View */}
           {showComparison && (
             <div className="lg:col-span-3">
-              <ComparisonView eventId={eventId!} />
+              <ComparisonView 
+                eventId={eventId!} 
+                onRequestAIAnalysis={handleRequestAIAnalysis}
+              />
             </div>
           )}
 
           {/* Chat Assistant */}
-          <div className="lg:col-span-3">
-            <ChatAssistant eventId={eventId} />
+          <div ref={chatRef} className="lg:col-span-3">
+            <ChatAssistant 
+              eventId={eventId} 
+              autoSendMessage={aiAnalysisMessage || undefined}
+              onMessageSent={handleAIMessageSent}
+            />
           </div>
         </div>
       </div>

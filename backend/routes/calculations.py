@@ -122,7 +122,7 @@ def get_event_legs(event_id: UUID, db: Session = Depends(get_db)):
 
 @router.get("/events/{event_id}/comparison")
 def get_comparison(event_id: UUID, db: Session = Depends(get_db)):
-    """Get planned vs actual comparison"""
+    """Get planned vs actual comparison with detailed performance analysis"""
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -130,18 +130,92 @@ def get_comparison(event_id: UUID, db: Session = Depends(get_db)):
     if not event.actual_gpx_data:
         raise HTTPException(status_code=404, detail="No actual data available")
     
-    # Get calculated legs
+    # Get calculated legs and waypoints
     planned_legs = db.query(CalculatedLeg).filter(
         CalculatedLeg.event_id == event_id
     ).order_by(CalculatedLeg.leg_number).all()
+    
+    waypoints = db.query(Waypoint).filter(
+        Waypoint.event_id == event_id
+    ).order_by(Waypoint.order_index).all()
+    
+    # Extract metadata
+    planned_distance_meters = event.gpx_metadata.get('total_distance_meters', 0) if event.gpx_metadata else 0
+    actual_distance_meters = event.actual_gpx_data.get('metadata', {}).get('total_distance_meters', 0)
+    
+    planned_elevation_gain = event.gpx_metadata.get('elevation_gain_meters', 0) if event.gpx_metadata else 0
+    actual_elevation_gain = event.actual_gpx_data.get('metadata', {}).get('elevation_gain_meters', 0)
+    
+    # Check if actual data has timestamps for time comparison
+    has_actual_timestamps = event.actual_gpx_data.get('metadata', {}).get('has_timestamps', False)
+    actual_duration_minutes = event.actual_gpx_data.get('metadata', {}).get('timestamp_duration_minutes')
+    planned_duration_minutes = event.target_duration_minutes
+    
+    # Build leg-by-leg comparison if we have actual timestamps
+    leg_comparisons = []
+    if has_actual_timestamps and actual_duration_minutes and planned_legs:
+        # TODO: For now, we'll estimate actual leg times proportionally
+        # In future, we could match actual GPX timestamps to waypoints
+        actual_to_planned_ratio = actual_duration_minutes / planned_duration_minutes if planned_duration_minutes else 1.0
+        
+        cumulative_planned_time = 0
+        cumulative_actual_time = 0
+        cumulative_time_diff = 0
+        
+        for i, leg in enumerate(planned_legs):
+            # Find corresponding waypoint
+            waypoint = next((w for w in waypoints if str(w.id) == str(leg.end_waypoint_id)), None)
+            
+            # Estimate actual leg time (proportional to planned)
+            planned_leg_time = leg.cumulative_time_minutes - cumulative_planned_time if i > 0 else leg.cumulative_time_minutes
+            estimated_actual_leg_time = planned_leg_time * actual_to_planned_ratio
+            
+            cumulative_planned_time = leg.cumulative_time_minutes
+            cumulative_actual_time += estimated_actual_leg_time
+            cumulative_time_diff = cumulative_actual_time - cumulative_planned_time
+            
+            leg_comparison = {
+                "leg_number": leg.leg_number,
+                "waypoint_name": waypoint.name if waypoint else f"Waypoint {leg.leg_number}",
+                "planned_leg_time_minutes": round(planned_leg_time, 2),
+                "estimated_actual_leg_time_minutes": round(estimated_actual_leg_time, 2),
+                "leg_time_diff_minutes": round(estimated_actual_leg_time - planned_leg_time, 2),
+                "cumulative_planned_time_minutes": round(cumulative_planned_time, 2),
+                "cumulative_actual_time_minutes": round(cumulative_actual_time, 2),
+                "cumulative_time_diff_minutes": round(cumulative_time_diff, 2),
+                "planned_pace": leg.adjusted_pace,
+                "distance_miles": round(leg.leg_distance, 2),
+                "cumulative_distance_miles": round(leg.cumulative_distance, 2)
+            }
+            leg_comparisons.append(leg_comparison)
+    
+    # Summary statistics
+    summary = {
+        "planned_distance_meters": planned_distance_meters,
+        "actual_distance_meters": actual_distance_meters,
+        "distance_diff_meters": actual_distance_meters - planned_distance_meters,
+        "distance_diff_percent": round(((actual_distance_meters - planned_distance_meters) / planned_distance_meters * 100), 2) if planned_distance_meters else 0,
+        
+        "planned_elevation_gain_meters": planned_elevation_gain,
+        "actual_elevation_gain_meters": actual_elevation_gain,
+        "elevation_diff_meters": actual_elevation_gain - planned_elevation_gain,
+        
+        "planned_duration_minutes": planned_duration_minutes,
+        "actual_duration_minutes": actual_duration_minutes,
+        "time_diff_minutes": (actual_duration_minutes - planned_duration_minutes) if (actual_duration_minutes and planned_duration_minutes) else None,
+        "time_diff_percent": round(((actual_duration_minutes - planned_duration_minutes) / planned_duration_minutes * 100), 2) if (actual_duration_minutes and planned_duration_minutes) else None,
+        
+        "has_actual_timestamps": has_actual_timestamps,
+        "planned_avg_pace": round(planned_duration_minutes / meters_to_miles(planned_distance_meters), 2) if planned_distance_meters and planned_duration_minutes else None,
+        "actual_avg_pace": round(actual_duration_minutes / meters_to_miles(actual_distance_meters), 2) if actual_distance_meters and actual_duration_minutes else None
+    }
     
     return {
         "planned_route": event.gpx_route,
         "actual_route": event.actual_gpx_data,
         "planned_legs": [CalculatedLegResponse.model_validate(leg) for leg in planned_legs],
-        "comparison_summary": {
-            "planned_distance": event.gpx_metadata.get('total_distance_meters') if event.gpx_metadata else 0,
-            "actual_distance": event.actual_gpx_data.get('metadata', {}).get('total_distance_meters', 0)
-        }
+        "comparison_summary": summary,
+        "leg_comparisons": leg_comparisons,
+        "waypoints": [{"id": str(w.id), "name": w.name, "order_index": w.order_index} for w in waypoints]
     }
 

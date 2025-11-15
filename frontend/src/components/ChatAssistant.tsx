@@ -3,6 +3,8 @@ import { Send, Bot, History, Plus, Trash2, X } from 'lucide-react';
 
 interface ChatAssistantProps {
   eventId?: string;
+  autoSendMessage?: string;
+  onMessageSent?: () => void;
 }
 
 interface Message {
@@ -20,7 +22,7 @@ interface ChatSession {
   updated_at: string;
 }
 
-export default function ChatAssistant({ eventId }: ChatAssistantProps) {
+export default function ChatAssistant({ eventId, autoSendMessage, onMessageSent }: ChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,17 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
       }
     }
   }, [eventId]);
+
+  // Handle auto-send message (e.g., from AI Analysis button)
+  useEffect(() => {
+    if (autoSendMessage && !loading) {
+      setInput(autoSendMessage);
+      // Trigger send after a short delay to ensure input is set
+      setTimeout(() => {
+        handleSendWithMessage(autoSendMessage);
+      }, 100);
+    }
+  }, [autoSendMessage]);
 
   const loadSessions = async () => {
     if (!eventId) return;
@@ -137,10 +150,10 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSendWithMessage = async (message: string) => {
+    if (!message.trim()) return;
 
-    const userMessage = input;
+    const userMessage = message;
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
@@ -232,6 +245,10 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
                 setLoading(false);
                 // Reload sessions to show the new/updated one
                 loadSessions();
+                // Call callback if provided
+                if (onMessageSent) {
+                  onMessageSent();
+                }
               } else if (data.error) {
                 throw new Error(data.error);
               }
@@ -254,6 +271,10 @@ export default function ChatAssistant({ eventId }: ChatAssistantProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSend = async () => {
+    await handleSendWithMessage(input);
   };
 
   return (
