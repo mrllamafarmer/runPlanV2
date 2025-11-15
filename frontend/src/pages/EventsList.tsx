@@ -63,8 +63,12 @@ export default function EventsList() {
     }
 
     try {
-      await eventsApi.update(id, { name: editingName });
-      loadEvents();
+      const response = await eventsApi.update(id, { name: editingName });
+      
+      // Immediately update local state with the response
+      setEvents(events.map(e => e.id === id ? response.data : e));
+      
+      // Clear edit mode
       setEditingId(null);
       setEditingName('');
     } catch (error) {
