@@ -349,26 +349,46 @@ async def get_chat_session(session_id: str, db: Session = Depends(get_db)):
     """
     Get a specific chat session with all messages
     """
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Chat session not found")
-    
-    return ChatSessionResponse(
-        id=session.id,
-        event_id=session.event_id,
-        title=session.title,
-        created_at=session.created_at,
-        updated_at=session.updated_at,
-        messages=[ChatMessageResponse(
-            id=msg.id,
-            session_id=msg.session_id,
-            role=msg.role,
-            content=msg.content,
-            sources=msg.sources,
-            created_at=msg.created_at
-        ) for msg in session.messages]
-    )
+    try:
+        session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Build message responses with proper handling
+        message_responses = []
+        for msg in session.messages:
+            try:
+                message_responses.append(ChatMessageResponse(
+                    id=msg.id,
+                    session_id=msg.session_id,
+                    role=msg.role,
+                    content=msg.content or "",  # Ensure content is never None
+                    sources=msg.sources,
+                    created_at=msg.created_at
+                ))
+            except Exception as msg_error:
+                print(f"Error serializing message {msg.id}: {msg_error}")
+                import traceback
+                print(traceback.format_exc())
+                # Skip problematic messages rather than failing entire session
+                continue
+        
+        return ChatSessionResponse(
+            id=session.id,
+            event_id=session.event_id,
+            title=session.title,
+            created_at=session.created_at,
+            updated_at=session.updated_at or session.created_at,  # Fallback if updated_at is None
+            messages=message_responses
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error retrieving session {session_id}: {e}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error loading session: {str(e)}")
 
 @router.delete("/sessions/{session_id}")
 async def delete_chat_session(session_id: str, db: Session = Depends(get_db)):

@@ -134,7 +134,7 @@ class ChatMessageResponse(BaseModel):
     session_id: UUID
     role: str
     content: str
-    sources: Optional[dict] = None
+    sources: Optional[List[dict]] = None  # List of source documents
     created_at: datetime
 
 class ChatSessionResponse(BaseModel):
