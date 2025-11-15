@@ -123,9 +123,12 @@ def generate_document_summary(text: str, max_length: int = 500) -> str:
     For now, just returns the first max_length characters
     In future, could use LLM to generate proper summary
     """
+    # Ensure text is sanitized
+    text = sanitize_text(text) if text else ""
+
     if len(text) <= max_length:
         return text
-    
+
     # Take first max_length chars and try to end at a sentence
     summary = text[:max_length]
     last_period = summary.rfind('.')
@@ -133,7 +136,7 @@ def generate_document_summary(text: str, max_length: int = 500) -> str:
         summary = summary[:last_period + 1]
     else:
         summary += "..."
-    
+
     return summary
 
 
@@ -174,14 +177,17 @@ def prepare_chunk_for_embedding(chunk_text: str, document_summary: str) -> str:
     """
     Prepare a chunk for embedding by combining it with document context
     This helps the embeddings capture the document's overall topic
-    
+
     Args:
         chunk_text: The chunk text
         document_summary: Brief summary of the overall document
-    
+
     Returns:
         Combined text for embedding
     """
+    # Extra safety: sanitize both inputs
+    chunk_text = sanitize_text(chunk_text) if chunk_text else ""
+    document_summary = sanitize_text(document_summary) if document_summary else ""
     return f"Document: {document_summary}\n\nChunk: {chunk_text}"
 
 
