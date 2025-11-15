@@ -112,7 +112,7 @@ export default function SettingsPage() {
                     distance_unit: e.target.value as 'miles' | 'kilometers',
                   })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
               >
                 <option value="miles">Miles</option>
                 <option value="kilometers">Kilometers</option>
@@ -131,7 +131,7 @@ export default function SettingsPage() {
                     elevation_unit: e.target.value as 'meters' | 'feet',
                   })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
               >
                 <option value="feet">Feet</option>
                 <option value="meters">Meters</option>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, pace_format: e.target.value })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white font-mono"
                 placeholder="mm:ss"
               />
             </div>
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, openai_api_key: e.target.value })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
                 placeholder="sk-..."
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -188,7 +188,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, ai_model: e.target.value })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white font-mono"
                 placeholder="gpt-5-nano-2025-08-07"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                     reasoning_effort: e.target.value as 'minimal' | 'low' | 'medium' | 'high',
                   })
                 }
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base px-3 py-2 text-gray-900 bg-white"
               >
                 <option value="minimal">Minimal - Fastest, cheapest</option>
                 <option value="low">Low - Fast responses</option>
