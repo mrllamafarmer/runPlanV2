@@ -25,7 +25,9 @@ export default function DocumentsPage() {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:8000/api/documents');
+      const response = await fetch('http://localhost:8000/api/documents', {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setDocuments(data);
@@ -62,6 +64,7 @@ export default function DocumentsPage() {
       const response = await fetch('http://localhost:8000/api/documents/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -89,6 +92,7 @@ export default function DocumentsPage() {
     try {
       const response = await fetch(`http://localhost:8000/api/documents/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (response.ok) {

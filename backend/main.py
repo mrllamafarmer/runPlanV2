@@ -31,16 +31,27 @@ app.add_middleware(
 )
 
 # Exception handlers to ensure CORS headers are always included
+ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+
+def get_cors_headers(request: Request) -> dict:
+    """Get CORS headers for the request origin"""
+    origin = request.headers.get("origin")
+    # Only allow origins in our whitelist
+    if origin in ALLOWED_ORIGINS:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+    # For non-whitelisted origins, don't set CORS headers
+    return {}
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Handle HTTP exceptions with proper CORS headers"""
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        headers=get_cors_headers(request)
     )
 
 @app.exception_handler(RequestValidationError)
@@ -49,10 +60,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": exc.errors()},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        headers=get_cors_headers(request)
     )
 
 @app.exception_handler(Exception)
@@ -61,10 +69,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": f"Internal server error: {str(exc)}"},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        headers=get_cors_headers(request)
     )
 
 # Include routers
