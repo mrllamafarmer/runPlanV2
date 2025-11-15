@@ -106,7 +106,7 @@ class DocumentChunk(Base):
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text)
     chunk_with_summary = Column(Text)  # chunk + document summary
-    embedding = Column(Vector(512))  # PGVector embedding (Opera text embedding small dimension)
+    embedding = Column(Vector(1536))  # PGVector embedding (OpenAI text-embedding-3-small dimension)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

@@ -135,14 +135,14 @@ CREATE TABLE document_chunks (
     chunk_index INTEGER NOT NULL,
     chunk_text TEXT,
     chunk_with_summary TEXT,
-    embedding VECTOR(512),
+    embedding VECTOR(1536),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
 **Purpose:** Chunked text with embeddings for semantic search.
 
-**Vector Dimension:** 512 (Opera text embedding small)
+**Vector Dimension:** 1536 (OpenAI text-embedding-3-small)
 
 ### 6. user_settings
 Application settings including encrypted API keys.
