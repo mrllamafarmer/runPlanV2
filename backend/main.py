@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -21,17 +21,50 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS configuration
+ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+
+# Custom middleware to ensure CORS headers on ALL responses including errors
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    """Add CORS headers to all responses, including error responses"""
+    origin = request.headers.get("origin")
+
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response = JSONResponse(content={}, status_code=200)
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+    # Process the request
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        # Handle any unhandled exceptions
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {str(e)}"}
+        )
+
+    # Add CORS headers to the response
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
+
+# CORS middleware (as fallback)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Exception handlers to ensure CORS headers are always included
-ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
 
 def get_cors_headers(request: Request) -> dict:
     """Get CORS headers for the request origin"""
