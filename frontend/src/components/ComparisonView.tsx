@@ -60,6 +60,8 @@ export default function ComparisonView({ eventId, onRequestAIAnalysis }: Compari
       const summary = comparison.comparison_summary;
       const legComps = comparison.leg_comparisons || [];
       
+      console.log('Generating AI analysis prompt with', legComps.length, 'legs');
+      
       const analysisPrompt = `Please analyze this race performance comparison:
 
 **Overall Performance:**

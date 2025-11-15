@@ -46,12 +46,10 @@ export default function ChatAssistant({ eventId, autoSendMessage, onMessageSent 
 
   // Handle auto-send message (e.g., from AI Analysis button)
   useEffect(() => {
-    if (autoSendMessage && !loading) {
-      setInput(autoSendMessage);
-      // Trigger send after a short delay to ensure input is set
-      setTimeout(() => {
-        handleSendWithMessage(autoSendMessage);
-      }, 100);
+    if (autoSendMessage && autoSendMessage.trim()) {
+      console.log('Auto-sending AI analysis message:', autoSendMessage.substring(0, 100) + '...');
+      // Directly send the message
+      handleSendWithMessage(autoSendMessage);
     }
   }, [autoSendMessage]);
 

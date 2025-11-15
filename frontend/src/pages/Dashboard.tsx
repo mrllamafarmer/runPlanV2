@@ -155,16 +155,21 @@ export default function Dashboard() {
   };
 
   const handleRequestAIAnalysis = (analysisPrompt: string) => {
+    console.log('AI Analysis requested with prompt length:', analysisPrompt.length);
     setAiAnalysisMessage(analysisPrompt);
     // Scroll to chat after a short delay
     setTimeout(() => {
       chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
+    // Clear the message after a brief delay to ensure useEffect captures it
+    setTimeout(() => {
+      setAiAnalysisMessage(null);
+    }, 500);
   };
 
   const handleAIMessageSent = () => {
-    // Clear the auto-send message after it's been sent
-    setAiAnalysisMessage(null);
+    // Message has been sent, no action needed here
+    console.log('AI message sent successfully');
   };
 
   const handleWaypointCreate = async (waypoint: Partial<Waypoint>) => {
