@@ -174,7 +174,49 @@ export default function SettingsPage() {
                 placeholder="sk-..."
               />
               <p className="mt-1 text-xs text-gray-500">
-                Required for AI assistant functionality (GPT-5 Nano, embeddings, web search)
+                Required for AI assistant functionality (embeddings, web search)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                AI Model
+              </label>
+              <input
+                type="text"
+                value={settings.ai_model}
+                onChange={(e) =>
+                  setSettings({ ...settings, ai_model: e.target.value })
+                }
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                placeholder="gpt-5-nano-2025-08-07"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Must be a reasoning/thinking model (e.g., gpt-5-nano-2025-08-07, o1, o3-mini)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reasoning Effort
+              </label>
+              <select
+                value={settings.reasoning_effort}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    reasoning_effort: e.target.value as 'minimal' | 'low' | 'medium' | 'high',
+                  })
+                }
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="minimal">Minimal - Fastest, cheapest</option>
+                <option value="low">Low - Fast responses</option>
+                <option value="medium">Medium - Balanced</option>
+                <option value="high">High - Most thorough</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Higher effort = better quality but slower and more expensive
               </p>
             </div>
           </div>

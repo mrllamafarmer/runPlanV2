@@ -102,6 +102,8 @@ class SettingsBase(BaseModel):
     pace_format: str = "mm:ss"
     elevation_unit: ElevationUnit = ElevationUnit.feet
     openai_api_key: Optional[str] = None
+    ai_model: str = "gpt-5-nano-2025-08-07"
+    reasoning_effort: str = "low"
     style_preferences: Optional[dict] = None
 
 class SettingsUpdate(SettingsBase):

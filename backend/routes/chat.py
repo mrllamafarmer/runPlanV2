@@ -173,9 +173,11 @@ async def chat(message: ChatMessage, db: Session = Depends(get_db)):
         db.add(user_msg)
         db.commit()
         
-        # Decrypt API key
+        # Decrypt API key and get AI settings
         api_key = decrypt_value(settings.openai_api_key)
         openai.api_key = api_key
+        ai_model = settings.ai_model or "gpt-5-nano-2025-08-07"
+        reasoning_effort = settings.reasoning_effort or "low"
         
         # Build context
         system_message = """You are an expert ultra running coach and advisor. You help runners plan and prepare for ultra marathons.
@@ -219,8 +221,8 @@ Provide detailed, practical advice based on the user's questions and the context
         def generate():
             try:
                 stream = client.responses.create(
-                    model="gpt-5-nano-2025-08-07",
-                    reasoning={"effort": "low"},
+                    model=ai_model,
+                    reasoning={"effort": reasoning_effort},
                     tools=[{"type": "web_search"}],  # Enable web search
                     tool_choice="auto",  # Let the model decide when to search
                     input=[

@@ -70,6 +70,8 @@ export interface Settings {
   pace_format: string;
   elevation_unit: 'meters' | 'feet';
   openai_api_key?: string;
+  ai_model: string;
+  reasoning_effort: 'minimal' | 'low' | 'medium' | 'high';
   style_preferences?: Record<string, any>;
   created_at: string;
   updated_at?: string;
